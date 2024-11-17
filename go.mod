@@ -4,6 +4,7 @@ go 1.23.3
 
 require (
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/progrium/darwinkit v0.5.0
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/crypto v0.29.0
 )

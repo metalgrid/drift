@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/metalgrid/dropzone/internal/notification"
 	"github.com/metalgrid/dropzone/internal/secret"
 	"github.com/metalgrid/dropzone/internal/server"
 	"github.com/metalgrid/dropzone/internal/zeroconf"
@@ -19,6 +20,8 @@ import (
 )
 
 func main() {
+	n := notification.NewNotifier()
+	n.SendNotification()
 
 	hostname, err := os.Hostname()
 	if err != nil {
