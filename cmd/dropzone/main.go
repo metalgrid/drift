@@ -8,8 +8,11 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
 	"os/user"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/metalgrid/dropzone/internal/notification"
@@ -43,8 +46,9 @@ func main() {
 		log.Fatal().Err(err).Msg("failed creating encryption keys")
 	}
 
-	appCtx, shutdownApp := context.WithCancel(context.Background())
-	defer shutdownApp()
+	appCtx, shutdown := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer shutdown()
+	wg := &sync.WaitGroup{}
 
 	servicePort, connections, connectionErrors, err := server.Start(appCtx)
 	if err != nil {
@@ -69,15 +73,24 @@ func main() {
 		panic(err)
 	}
 
+	wg.Add(1)
 	go func() {
-		for err := range connectionErrors {
-			log.Error().Err(err).Msg("incoming connection error")
+		defer wg.Done()
+		for {
+			select {
+			case <-appCtx.Done():
+				log.Info().Str("system", "connection_errors_processor").Msg("stopping")
+				return
+			case err := <-connectionErrors:
+				log.Error().Err(err).Msg("incoming connection error")
+			}
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for conn := range connections {
-
 			peer := peers.GetByAddr(conn.RemoteAddr())
 			if peer == nil {
 				log.Warn().Stringer("address", conn.RemoteAddr()).Msg("unknown peer")
@@ -106,35 +119,43 @@ func main() {
 		}
 	}()
 
-	time.Sleep(time.Second * 2)
-	log.Debug().Msg("Attempting to send a file to the first service we have")
-	for _, peer := range peers.All() {
-		conn, _ := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
-		pk, err := hex.DecodeString(peer.GetRecord("pk"))
-		if err != nil {
-			panic(err)
-		}
-
-		var peerpk [32]byte
-		copy(peerpk[:], pk)
-		sc, err := secret.SecureConnection(conn, &peerpk, privkey)
-		if err != nil {
-			panic(err)
-		}
-
-		sc.Write([]byte("OFFER|Something, blah-blah...\n"))
-
-		b := make([]byte, 1024)
-		for {
-			_, err := sc.Read(b)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second * 2)
+		log.Debug().Msg("Attempting to send a file to the first service we have")
+		for _, peer := range peers.All() {
+			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
+			if err != nil {
+				log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
+				return
+			}
+			pk, err := hex.DecodeString(peer.GetRecord("pk"))
 			if err != nil {
 				panic(err)
 			}
-			fmt.Print(string(b))
-		}
-	}
 
-	select {}
+			var peerpk [32]byte
+			copy(peerpk[:], pk)
+			sc, err := secret.SecureConnection(conn, &peerpk, privkey)
+			if err != nil {
+				panic(err)
+			}
+
+			sc.Write([]byte("OFFER|Something, blah-blah...\n"))
+
+			rdr := bufio.NewReader(sc)
+			for {
+				msg, err := rdr.ReadString('\n')
+				if err != nil {
+					panic(err)
+				}
+				fmt.Print(msg)
+			}
+		}
+	}()
+
+	wg.Wait()
 }
 
 func handleEncryptedConnection(conn net.Conn, pubkey, privkey *[32]byte) {
