@@ -90,32 +90,39 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for conn := range connections {
-			peer := peers.GetByAddr(conn.RemoteAddr())
-			if peer == nil {
-				log.Warn().Stringer("address", conn.RemoteAddr()).Msg("unknown peer")
-				_ = conn.Close()
-				continue
+		for {
+			select {
+			case <-appCtx.Done():
+				log.Info().Str("system", "connection_processor").Msg("shutting down")
+				return
+			case conn := <-connections:
+				defer conn.Close()
+				peer := peers.GetByAddr(conn.RemoteAddr())
+				if peer == nil {
+					log.Warn().Stringer("address", conn.RemoteAddr()).Msg("unknown peer")
+					_ = conn.Close()
+					continue
+				}
+
+				pk := peer.GetRecord("pk")
+				if pk == "" {
+					log.Warn().Str("peer", peer.GetInstance()).Msg("public key not found")
+					_ = conn.Close()
+					continue
+				}
+
+				decodedKey, err := hex.DecodeString(pk)
+				if err != nil {
+					log.Warn().Str("peer", peer.GetInstance()).Str("pk", pk).Err(err).Msg("invalid public key")
+					_ = conn.Close()
+					continue
+				}
+
+				var peerPublicKey [32]byte
+				copy(peerPublicKey[:], decodedKey)
+
+				go handleEncryptedConnection(conn, &peerPublicKey, privkey)
 			}
-
-			pk := peer.GetRecord("pk")
-			if pk == "" {
-				log.Warn().Str("peer", peer.GetInstance()).Msg("public key not found")
-				_ = conn.Close()
-				continue
-			}
-
-			decodedKey, err := hex.DecodeString(pk)
-			if err != nil {
-				log.Warn().Str("peer", peer.GetInstance()).Str("pk", pk).Err(err).Msg("invalid public key")
-				_ = conn.Close()
-				continue
-			}
-
-			var peerPublicKey [32]byte
-			copy(peerPublicKey[:], decodedKey)
-
-			go handleEncryptedConnection(conn, &peerPublicKey, privkey)
 		}
 	}()
 
@@ -130,6 +137,7 @@ func main() {
 				log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
 				return
 			}
+			defer conn.Close()
 			pk, err := hex.DecodeString(peer.GetRecord("pk"))
 			if err != nil {
 				panic(err)
