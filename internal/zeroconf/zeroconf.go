@@ -135,19 +135,15 @@ func (svc *ZeroconfService) Discover(ctx context.Context) error {
 		return fmt.Errorf("failed discovering services: %w", err)
 	}
 
-	peers := &Peers{
-		mu:    &sync.RWMutex{},
-		peers: make(map[string]*PeerInfo),
-	}
-
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case service := <-entries:
+				// Skip ourselves
 				if service.Instance != svc.instance {
-					peers.add(&PeerInfo{
+					svc.peers.add(&PeerInfo{
 						ServiceEntry: service,
 					})
 				}
