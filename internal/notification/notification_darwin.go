@@ -4,6 +4,7 @@
 package notification
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 type darwinNotifier struct{}
 
 func (n *darwinNotifier) SendNotification() {
-
+	fmt.Println("OSX Notification")
 }
 
 func newNotifier() Notifier {

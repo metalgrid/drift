@@ -8,7 +8,7 @@ import "fmt"
 type windowsNotifier struct{}
 
 func (n *windowsNotifier) SendNotification() {
-	fmt.Printf("placeholder")
+	fmt.Printf("Windows notification")
 }
 
 func newNotifier() Notifier {

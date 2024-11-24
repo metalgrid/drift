@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/metalgrid/dropzone/internal/notification"
 	"github.com/metalgrid/dropzone/internal/secret"
@@ -126,42 +125,42 @@ func main() {
 		}
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		time.Sleep(time.Second * 2)
-		log.Debug().Msg("Attempting to send a file to the first service we have")
-		for _, peer := range peers.All() {
-			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
-			if err != nil {
-				log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
-				return
-			}
-			defer conn.Close()
-			pk, err := hex.DecodeString(peer.GetRecord("pk"))
-			if err != nil {
-				panic(err)
-			}
+	// wg.Add(1)
+	// go func() {
+	// 	defer wg.Done()
+	// 	time.Sleep(time.Second * 2)
+	// 	log.Debug().Msg("Attempting to send a file to the first service we have")
+	// 	for _, peer := range peers.All() {
+	// 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
+	// 		if err != nil {
+	// 			log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
+	// 			return
+	// 		}
+	// 		defer conn.Close()
+	// 		pk, err := hex.DecodeString(peer.GetRecord("pk"))
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
 
-			var peerpk [32]byte
-			copy(peerpk[:], pk)
-			sc, err := secret.SecureConnection(conn, &peerpk, privkey)
-			if err != nil {
-				panic(err)
-			}
+	// 		var peerpk [32]byte
+	// 		copy(peerpk[:], pk)
+	// 		sc, err := secret.SecureConnection(conn, &peerpk, privkey)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
 
-			sc.Write([]byte("OFFER|Something, blah-blah...\n"))
+	// 		sc.Write([]byte("OFFER|Something, blah-blah...\n"))
 
-			rdr := bufio.NewReader(sc)
-			for {
-				msg, err := rdr.ReadString('\n')
-				if err != nil {
-					panic(err)
-				}
-				fmt.Print(msg)
-			}
-		}
-	}()
+	// 		rdr := bufio.NewReader(sc)
+	// 		for {
+	// 			msg, err := rdr.ReadString('\n')
+	// 			if err != nil {
+	// 				panic(err)
+	// 			}
+	// 			fmt.Print(msg)
+	// 		}
+	// 	}
+	// }()
 
 	wg.Wait()
 }

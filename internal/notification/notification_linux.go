@@ -5,13 +5,11 @@ package notification
 
 import "fmt"
 
-func SendNotification() {
-	fmt.Println("placeholder")
-}
-
 type linuxNotifier struct{}
 
-func (n linuxNotifier) SendNotification() {}
+func (n linuxNotifier) SendNotification() {
+	fmt.Println("Linux notification")
+}
 
 func newNotifier() Notifier {
 	return &linuxNotifier{}
