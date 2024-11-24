@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"os/signal"
-	"os/user"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,21 +23,6 @@ func main() {
 	n := notification.NewNotifier()
 	n.SendNotification()
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed determining local machine's hostname")
-	}
-
-	user, err := user.Current()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed determining local user")
-	}
-
-	username := user.Username
-	if user.Name != "" {
-		username = user.Name
-	}
-
 	privkey, pubkey, err := secret.GenerateX25519KeyPair()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating encryption keys")
@@ -54,22 +37,21 @@ func main() {
 		log.Fatal().Err(err).Msg("failed listening for connections")
 	}
 
-	zcSvc, err := zeroconf.Advertise(
-		servicePort,
-		username,
-		hostname,
-		fmt.Sprintf("%x", *pubkey),
-	)
-
+	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", pubkey))
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed registering to zeroconf")
+		log.Fatal().Err(err).Msg("failed creating zeroconf service")
 	}
 
 	defer zcSvc.Shutdown()
 
-	peers, err := zeroconf.Discover(appCtx)
+	err = zcSvc.Discover(appCtx)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed discovering local services")
+	}
+
+	err = zcSvc.Advertise()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed advertising ourselves")
 	}
 
 	wg.Add(1)
@@ -96,7 +78,7 @@ func main() {
 				return
 			case conn := <-connections:
 				defer conn.Close()
-				peer := peers.GetByAddr(conn.RemoteAddr())
+				peer := zcSvc.Peers().GetByAddr(conn.RemoteAddr())
 				if peer == nil {
 					log.Warn().Stringer("address", conn.RemoteAddr()).Msg("unknown peer")
 					_ = conn.Close()
@@ -130,7 +112,7 @@ func main() {
 	// 	defer wg.Done()
 	// 	time.Sleep(time.Second * 2)
 	// 	log.Debug().Msg("Attempting to send a file to the first service we have")
-	// 	for _, peer := range peers.All() {
+	// 	for _, peer := range zcSvc.Peers().All() {
 	// 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
 	// 		if err != nil {
 	// 			log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")

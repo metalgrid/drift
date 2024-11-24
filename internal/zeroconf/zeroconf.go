@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"os"
+	"os/user"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,8 +19,6 @@ const (
 	serviceType   = "_dropzone._tcp"
 	serviceDomain = "local."
 )
-
-var me string = "iso's\\ Dropzone\\ on\\ archbtw"
 
 type PeerInfo struct {
 	*zc.ServiceEntry
@@ -87,40 +87,52 @@ func (p *Peers) add(pi *PeerInfo) {
 	p.peers[pi.ServiceInstanceName()] = pi
 }
 
-func Advertise(port int, username, hostname, pubkey string) (*zc.Server, error) {
-	server, err := zc.Register(
-		fmt.Sprintf("%s's Dropzone on %s", username, hostname),
+type ZeroconfService struct {
+	servicePort int
+	pubkey      string
+	instance    string
+	peers       *Peers
+	server      *zc.Server
+}
+
+func (svc *ZeroconfService) Shutdown() {
+	svc.server.Shutdown()
+}
+
+func (svc *ZeroconfService) Advertise() error {
+	var err error
+	svc.server, err = zc.Register(
+		svc.instance,
 		serviceType,
 		serviceDomain,
-		port,
+		svc.servicePort,
 		[]string{
 			"v=0.1",
-			"u=" + username,
-			"pk=" + pubkey,
+			"pk=" + svc.pubkey,
 		},
 		nil,
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed registering to zeroconf: %w", err)
+		return fmt.Errorf("failed registering to zeroconf: %w", err)
 	}
 
-	server.TTL(300)
+	svc.server.TTL(300)
 
-	return server, nil
+	return err
 }
 
-func Discover(ctx context.Context) (*Peers, error) {
+func (svc *ZeroconfService) Discover(ctx context.Context) error {
 	resolver, err := zc.NewResolver(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed initializing service discovery: %w", err)
+		return fmt.Errorf("failed initializing service discovery: %w", err)
 	}
 
 	entries := make(chan *zc.ServiceEntry)
 
 	err = resolver.Browse(ctx, serviceType, serviceDomain, entries)
 	if err != nil {
-		return nil, fmt.Errorf("failed discovering services: %w", err)
+		return fmt.Errorf("failed discovering services: %w", err)
 	}
 
 	peers := &Peers{
@@ -134,7 +146,7 @@ func Discover(ctx context.Context) (*Peers, error) {
 			case <-ctx.Done():
 				return
 			case service := <-entries:
-				if service.Instance != me {
+				if service.Instance != svc.instance {
 					peers.add(&PeerInfo{
 						ServiceEntry: service,
 					})
@@ -144,5 +156,39 @@ func Discover(ctx context.Context) (*Peers, error) {
 		}
 	}()
 
-	return peers, nil
+	return nil
+}
+
+func (svc *ZeroconfService) Peers() *Peers {
+	return svc.peers
+}
+
+func NewZeroconfService(port int, pubkey string) (*ZeroconfService, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("failed determining local machine's hostname")
+	}
+
+	user, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("failed determining local user")
+	}
+
+	username := user.Username
+	if user.Name != "" {
+		username = user.Name
+	}
+
+	svc := &ZeroconfService{
+		servicePort: port,
+		pubkey:      pubkey,
+		instance:    fmt.Sprintf("%s’s Dropzone on %s", username, hostname),
+		peers: &Peers{
+			mu:    &sync.RWMutex{},
+			peers: make(map[string]*PeerInfo),
+		},
+		server: nil,
+	}
+
+	return svc, nil
 }
