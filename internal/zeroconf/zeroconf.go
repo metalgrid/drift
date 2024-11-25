@@ -66,6 +66,19 @@ func (p *Peers) GetByService(service string) *PeerInfo {
 	return nil
 }
 
+func (p *Peers) GetByInstance(instance string) *PeerInfo {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	for _, pi := range p.peers {
+		if pi.Instance == instance {
+			return pi
+		}
+	}
+
+	return nil
+}
+
 func (p *Peers) GetByAddr(addr net.Addr) *PeerInfo {
 	remoteIP := addr.(*net.TCPAddr).IP
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
+	"github.com/metalgrid/dropzone/internal/zeroconf"
 )
 
 const (
@@ -18,11 +19,8 @@ const (
 )
 
 type DBusGateway struct {
+	peers *zeroconf.Peers
 	reqch chan Request
-}
-
-func NewDBusGateway() *DBusGateway {
-	return &DBusGateway{}
 }
 
 func (g *DBusGateway) Start(ctx context.Context) (<-chan Request, error) {
@@ -68,7 +66,6 @@ func (g *DBusGateway) Start(ctx context.Context) (<-chan Request, error) {
 		_ = busConn.Close()
 	}()
 
-	g.reqch = make(chan Request)
 	return g.reqch, nil
 }
 
@@ -90,9 +87,14 @@ func (g *DBusGateway) Request(to, file string) *dbus.Error {
 }
 
 func (g *DBusGateway) ListPeers() ([]string, *dbus.Error) {
-	return nil, nil
+	peers := g.peers.All()
+	res := make([]string, len(peers))
+	for idx, peer := range peers {
+		res[idx] = peer.Instance
+	}
+	return res, nil
 }
 
-func newGateway() Gateway {
-	return &DBusGateway{}
+func newGateway(peers *zeroconf.Peers) Gateway {
+	return &DBusGateway{peers, make(chan Request)}
 }

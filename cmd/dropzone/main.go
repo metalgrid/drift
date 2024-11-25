@@ -49,7 +49,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed advertising ourselves")
 	}
 
-	transferGateway := transfer.NewGateway()
+	transferGateway := transfer.NewGateway(zcSvc.Peers())
 	transferRequests, err := transferGateway.Start(appCtx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed starting transfer gateway")
@@ -122,7 +122,7 @@ func main() {
 				log.Info().Str("system", "outbound_connection_processor").Msg("stopping")
 				return
 			case request := <-transferRequests:
-				peer := zcSvc.Peers().GetByService(request.To)
+				peer := zcSvc.Peers().GetByInstance(request.To)
 				if peer == nil {
 					log.Warn().Str("peer", request.To).Msg("could not find peer")
 					continue

@@ -1,6 +1,10 @@
 package transfer
 
-import "context"
+import (
+	"context"
+
+	"github.com/metalgrid/dropzone/internal/zeroconf"
+)
 
 type Request struct {
 	To   string
@@ -13,6 +17,6 @@ type Gateway interface {
 	NewRequest(string, string) error
 }
 
-func NewGateway() Gateway {
-	return newGateway()
+func NewGateway(peers *zeroconf.Peers) Gateway {
+	return newGateway(peers)
 }
