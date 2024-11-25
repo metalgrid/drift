@@ -8,20 +8,16 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/metalgrid/dropzone/internal/notification"
 	"github.com/metalgrid/dropzone/internal/secret"
 	"github.com/metalgrid/dropzone/internal/server"
+	"github.com/metalgrid/dropzone/internal/transfer"
 	"github.com/metalgrid/dropzone/internal/transport"
 	"github.com/metalgrid/dropzone/internal/zeroconf"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	n := notification.NewNotifier()
-	n.SendNotification()
-
 	privkey, pubkey, err := secret.GenerateX25519KeyPair()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating encryption keys")
@@ -53,6 +49,12 @@ func main() {
 		log.Fatal().Err(err).Msg("failed advertising ourselves")
 	}
 
+	transferGateway := transfer.NewGateway()
+	transferRequests, err := transferGateway.Start(appCtx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed starting transfer gateway")
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -67,13 +69,14 @@ func main() {
 		}
 	}()
 
+	// Incoming connection handler
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			select {
 			case <-appCtx.Done():
-				log.Info().Str("system", "connection_processor").Msg("stopping")
+				log.Info().Str("system", "inbound_connection_processor").Msg("stopping")
 				return
 			case conn := <-connections:
 				defer conn.Close() // TODO: too many deferred ?
@@ -108,34 +111,44 @@ func main() {
 		}
 	}()
 
+	// Outgoing connection handler
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		time.Sleep(time.Second * 2)
-		for _, peer := range zcSvc.Peers().All() {
-			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
-			if err != nil {
-				log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
+
+		for {
+			select {
+			case <-appCtx.Done():
+				log.Info().Str("system", "outbound_connection_processor").Msg("stopping")
 				return
-			}
-			defer conn.Close()
-			pk, err := hex.DecodeString(peer.GetRecord("pk"))
-			if err != nil {
-				panic(err)
-			}
+			case request := <-transferRequests:
+				peer := zcSvc.Peers().GetByService(request.To)
+				if peer == nil {
+					log.Warn().Str("peer", request.To).Msg("could not find peer")
+					continue
+				}
+				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
+				if err != nil {
+					log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
+					return
+				}
+				pk, err := hex.DecodeString(peer.GetRecord("pk"))
+				if err != nil {
+					panic(err)
+				}
 
-			var peerpk [32]byte
-			copy(peerpk[:], pk)
-			sc, err := secret.SecureConnection(conn, &peerpk, privkey)
-			if err != nil {
-				panic(err)
-			}
+				var peerpk [32]byte
+				copy(peerpk[:], pk)
+				sc, err := secret.SecureConnection(conn, &peerpk, privkey)
+				if err != nil {
+					panic(err)
+				}
 
-			go transport.HandleConnection(sc)
-			transport.SendFile("/etc/os-release", sc)
+				go transport.HandleConnection(sc)
+				transport.SendFile(request.File, sc)
+				_ = conn.Close()
+			}
 		}
-
-		<-appCtx.Done()
 	}()
 
 	wg.Wait()

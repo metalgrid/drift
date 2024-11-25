@@ -142,12 +142,12 @@ func (svc *ZeroconfService) Discover(ctx context.Context) error {
 				return
 			case service := <-entries:
 				// Skip ourselves
-				if service.Instance != svc.instance {
-					svc.peers.add(&PeerInfo{
-						ServiceEntry: service,
-					})
+				if service.Instance == svc.instance {
+					continue
 				}
-				fmt.Printf("Discovered service:\n%v", service)
+				svc.peers.add(&PeerInfo{
+					ServiceEntry: service,
+				})
 			}
 		}
 	}()

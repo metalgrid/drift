@@ -82,6 +82,9 @@ func UnmarshalMessage(msg string) any {
 
 	case strings.HasPrefix(msg, "ANSWER"):
 		parts := strings.Split(msg, fieldSeparator)
+		if len(parts) != 2 {
+			break
+		}
 		return Answer{
 			Message{parts[0]},
 			parts[1],
