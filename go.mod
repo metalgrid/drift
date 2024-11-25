@@ -3,6 +3,7 @@ module github.com/metalgrid/dropzone
 go 1.23.3
 
 require (
+	github.com/adrg/xdg v0.5.3
 	github.com/godbus/dbus/v5 v5.0.4
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/progrium/darwinkit v0.5.0

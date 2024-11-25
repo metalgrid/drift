@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"github.com/adrg/xdg"
 )
 
 const timeout = 3 * time.Second
@@ -36,7 +38,7 @@ func HandleConnection(conn net.Conn) {
 			if err != nil {
 				return
 			}
-			err = storeFile("dropzone-incoming", m.Filename, m.Size, reader)
+			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Dropzone", m.Filename, m.Size, reader)
 			if err != nil {
 				fmt.Println("failed storing:", err)
 				return
