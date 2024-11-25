@@ -36,7 +36,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed listening for connections")
 	}
 
-	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", &pubkey))
+	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", *pubkey))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating zeroconf service")
 	}
@@ -103,7 +103,6 @@ func main() {
 
 				// Secure the connection
 				sc, err := secret.SecureConnection(conn, &peerPublicKey, privkey)
-
 				go transport.HandleConnection(sc)
 			}
 		}
@@ -113,7 +112,6 @@ func main() {
 	go func() {
 		defer wg.Done()
 		time.Sleep(time.Second * 2)
-		log.Debug().Msg("Attempting to send a file to the first service we have")
 		for _, peer := range zcSvc.Peers().All() {
 			conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
 			if err != nil {
@@ -135,8 +133,9 @@ func main() {
 
 			go transport.HandleConnection(sc)
 			transport.SendFile("/etc/os-release", sc)
-
 		}
+
+		<-appCtx.Done()
 	}()
 
 	wg.Wait()

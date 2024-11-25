@@ -34,7 +34,7 @@ func (o Offer) MarshalMessage() []byte {
 				strconv.FormatInt(o.Size, 10),
 			},
 			fieldSeparator,
-		),
+		) + string(endOfMessage),
 	)
 }
 

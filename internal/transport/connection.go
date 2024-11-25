@@ -6,7 +6,10 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 )
+
+const timeout = 3 * time.Second
 
 func HandleConnection(conn net.Conn) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
@@ -17,7 +20,7 @@ func HandleConnection(conn net.Conn) {
 	for {
 		raw, err := reader.ReadString(byte(endOfMessage))
 		if err != nil {
-			fmt.Println("error reading from remote", err)
+			fmt.Println("error reading from remote:", err)
 			return
 		}
 
@@ -33,7 +36,7 @@ func HandleConnection(conn net.Conn) {
 			if err != nil {
 				return
 			}
-			err = storeFile("dropzone-incoming", m.Filename, reader)
+			err = storeFile("dropzone-incoming", m.Filename, m.Size, reader)
 			if err != nil {
 				fmt.Println("failed storing:", err)
 				return
@@ -51,22 +54,28 @@ func HandleConnection(conn net.Conn) {
 	}
 }
 
-func storeFile(incoming, file string, reader *bufio.Reader) error {
+func storeFile(incoming, file string, size int64, reader *bufio.Reader) error {
 	err := os.MkdirAll(incoming, 0777)
 
 	if err != nil {
 		return err
 	}
-
-	f, err := os.Create(incoming + string(os.PathSeparator) + file)
+	filepath := incoming + string(os.PathSeparator) + file
+	f, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	_, err = io.Copy(f, reader)
+	_, err = io.CopyN(f, reader, size)
 
-	return err
+	_ = f.Close()
+	if err != nil {
+		// if we're able to create the file, we should be able to remove it as well
+		_ = os.Remove(filepath)
+		return err
+	}
+
+	return nil
 }
 
 func sendFile(file string, writer *bufio.Writer) error {
@@ -77,11 +86,13 @@ func sendFile(file string, writer *bufio.Writer) error {
 	defer f.Close()
 
 	_, err = io.Copy(writer, f)
+	_ = writer.Flush()
 
 	return err
 }
 
 func SendFile(filename string, conn net.Conn) {
+	fmt.Println("Sending file", filename)
 	offer, err := MakeOffer(filename)
 	if err != nil {
 		fmt.Println("failed creating file offer:", err)
