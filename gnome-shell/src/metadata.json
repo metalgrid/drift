@@ -1,0 +1,8 @@
+{
+  "name": "Drift",
+  "description": "Pain-free, secure file transfers",
+  "uuid": "drift@axtroz.dev",
+  "shell-version": [
+    "47"
+  ]
+}
