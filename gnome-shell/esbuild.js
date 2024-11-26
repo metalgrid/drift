@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFileSync, readFileSync } from 'fs';
+import { copyFileSync, readFileSync, cpSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import AdmZip from 'adm-zip';
@@ -30,9 +30,12 @@ build({
 }).then(() => {
     const metaSrc = resolve(__dirname, 'src/metadata.json');
     const metaDist = resolve(__dirname, 'dist/metadata.json');
+    const schemaSrc = resolve(__dirname, 'src/schema');
+    const schemaDst = resolve(__dirname, 'dist/schema');
     const zipFilename = `${metadata.uuid}.zip`;
     const zipDist = resolve(__dirname, zipFilename);
     copyFileSync(metaSrc, metaDist);
+    cpSync(schemaSrc, schemaDst, { recursive: true });
 
     const zip = new AdmZip();
     zip.addLocalFolder(resolve(__dirname, 'dist'));
