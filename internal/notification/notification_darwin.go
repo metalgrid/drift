@@ -29,7 +29,7 @@ func SendNotification() {
 	// replacing the bundleIdentifier method on the default main bundle
 	nsbundle := foundation.Bundle_MainBundle().Class()
 	objc.ReplaceMethod(nsbundle, objc.Sel("bundleIdentifier"), func(_ objc.IObject) string {
-		return "com.github.metalgrid.Dropzone" // change this if you miss the allow notification
+		return "com.github.metalgrid.Drift" // change this if you miss the allow notification
 	})
 
 	objc.WithAutoreleasePool(func() {

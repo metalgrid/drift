@@ -3,7 +3,7 @@ package transfer
 import (
 	"context"
 
-	"github.com/metalgrid/dropzone/internal/zeroconf"
+	"github.com/metalgrid/drift/internal/zeroconf"
 )
 
 type Request struct {

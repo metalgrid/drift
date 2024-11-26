@@ -9,13 +9,13 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
-	"github.com/metalgrid/dropzone/internal/zeroconf"
+	"github.com/metalgrid/drift/internal/zeroconf"
 )
 
 const (
-	busName = "com.github.metalgrid.Dropzone"
-	objPath = "/com/github/metalgrid/Dropzone"
-	iface   = "com.github.metalgrid.Dropzone"
+	busName = "com.github.metalgrid.Drift"
+	objPath = "/com/github/metalgrid/Drift"
+	iface   = "com.github.metalgrid.Drift"
 )
 
 type DBusGateway struct {

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/metalgrid/dropzone/internal/secret"
-	"github.com/metalgrid/dropzone/internal/server"
-	"github.com/metalgrid/dropzone/internal/transfer"
-	"github.com/metalgrid/dropzone/internal/transport"
-	"github.com/metalgrid/dropzone/internal/zeroconf"
+	"github.com/metalgrid/drift/internal/secret"
+	"github.com/metalgrid/drift/internal/server"
+	"github.com/metalgrid/drift/internal/transfer"
+	"github.com/metalgrid/drift/internal/transport"
+	"github.com/metalgrid/drift/internal/zeroconf"
 	"github.com/rs/zerolog/log"
 )
 

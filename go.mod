@@ -1,4 +1,4 @@
-module github.com/metalgrid/dropzone
+module github.com/metalgrid/drift
 
 go 1.23.3
 

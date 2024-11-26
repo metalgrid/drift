@@ -38,7 +38,7 @@ func HandleConnection(conn net.Conn) {
 			if err != nil {
 				return
 			}
-			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Dropzone", m.Filename, m.Size, reader)
+			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Drift", m.Filename, m.Size, reader)
 			if err != nil {
 				fmt.Println("failed storing:", err)
 				return

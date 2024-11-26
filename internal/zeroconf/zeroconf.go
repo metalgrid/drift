@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	serviceType   = "_dropzone._tcp"
+	serviceType   = "_drift._tcp"
 	serviceDomain = "local."
 )
 
@@ -122,6 +123,7 @@ func (svc *ZeroconfService) Advertise() error {
 		[]string{
 			"v=0.1",
 			"pk=" + svc.pubkey,
+			"os=" + runtime.GOOS,
 		},
 		nil,
 	)
@@ -191,7 +193,7 @@ func NewZeroconfService(port int, pubkey string) (*ZeroconfService, error) {
 	svc := &ZeroconfService{
 		servicePort: port,
 		pubkey:      pubkey,
-		instance:    fmt.Sprintf("%s’s Dropzone on %s", username, hostname),
+		instance:    fmt.Sprintf("%s’s Drift on %s", username, hostname),
 		peers: &Peers{
 			mu:    &sync.RWMutex{},
 			peers: make(map[string]*PeerInfo),
