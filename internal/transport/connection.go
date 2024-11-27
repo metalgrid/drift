@@ -62,8 +62,10 @@ func storeFile(incoming, file string, size int64, reader *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
+
 	filepath := incoming + string(os.PathSeparator) + file
-	f, err := os.Create(filepath)
+	// f, err := os.Create(filepath)
+	f, err := os.CreateTemp(incoming, file+"*.drift")
 	if err != nil {
 		return err
 	}
@@ -73,11 +75,10 @@ func storeFile(incoming, file string, size int64, reader *bufio.Reader) error {
 	_ = f.Close()
 	if err != nil {
 		// if we're able to create the file, we should be able to remove it as well
-		_ = os.Remove(filepath)
+		_ = os.Remove(f.Name())
 		return err
 	}
-
-	return nil
+	return os.Rename(f.Name(), filepath)
 }
 
 func sendFile(file string, writer *bufio.Writer) error {
