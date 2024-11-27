@@ -193,7 +193,7 @@ func NewZeroconfService(port int, pubkey string) (*ZeroconfService, error) {
 	svc := &ZeroconfService{
 		servicePort: port,
 		pubkey:      pubkey,
-		instance:    fmt.Sprintf("%s’s Drift on %s", username, hostname),
+		instance:    fmt.Sprintf("%s’s %s", username, hostname),
 		peers: &Peers{
 			mu:    &sync.RWMutex{},
 			peers: make(map[string]*PeerInfo),
