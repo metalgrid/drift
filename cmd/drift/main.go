@@ -145,7 +145,6 @@ func main() {
 
 				go transport.HandleConnection(sc, platformGateway)
 				transport.SendFile(request.File, sc)
-				_ = conn.Close()
 			}
 		}
 	}()

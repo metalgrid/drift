@@ -42,7 +42,8 @@ func HandleConnection(conn net.Conn, gw platform.Gateway) {
 				}
 			}
 
-			if answer == "DECLINE" {
+			// empty string means waiting for an action from the local user has timed out, so we decline by default
+			if answer == "DECLINE" || answer == "" {
 				_, _ = conn.Write(Decline().MarshalMessage())
 				return
 			}
