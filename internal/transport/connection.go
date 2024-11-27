@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
+	"github.com/metalgrid/drift/internal/platform"
 )
 
 const timeout = 3 * time.Second
 
-func HandleConnection(conn net.Conn) {
+func HandleConnection(conn net.Conn, gw platform.Gateway) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -33,11 +34,19 @@ func HandleConnection(conn net.Conn) {
 			fmt.Printf("error: %+v", m)
 			return
 		case Offer:
-			fmt.Printf("offer: %+v", m)
-			_, err = conn.Write(Accept().MarshalMessage())
-			if err != nil {
+			answer := gw.Ask(fmt.Sprintf("Incoming file: %s (%s)", m.Filename, formatSize(m.Size)))
+			if answer == "ACCEPT" {
+				_, err = conn.Write(Accept().MarshalMessage())
+				if err != nil {
+					return
+				}
+			}
+
+			if answer == "DECLINE" {
+				_, _ = conn.Write(Decline().MarshalMessage())
 				return
 			}
+
 			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Drift", m.Filename, m.Size, reader)
 			if err != nil {
 				fmt.Println("failed storing:", err)

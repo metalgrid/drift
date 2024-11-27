@@ -9,9 +9,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/metalgrid/drift/internal/platform"
 	"github.com/metalgrid/drift/internal/secret"
 	"github.com/metalgrid/drift/internal/server"
-	"github.com/metalgrid/drift/internal/transfer"
 	"github.com/metalgrid/drift/internal/transport"
 	"github.com/metalgrid/drift/internal/zeroconf"
 	"github.com/rs/zerolog/log"
@@ -49,8 +49,8 @@ func main() {
 		log.Fatal().Err(err).Msg("failed advertising ourselves")
 	}
 
-	transferGateway := transfer.NewGateway(zcSvc.Peers())
-	transferRequests, err := transferGateway.Start(appCtx)
+	platformGateway := platform.NewGateway(zcSvc.Peers())
+	transferRequests, err := platformGateway.Run(appCtx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed starting transfer gateway")
 	}
@@ -79,7 +79,6 @@ func main() {
 				log.Info().Str("system", "inbound_connection_processor").Msg("stopping")
 				return
 			case conn := <-connections:
-				defer conn.Close() // TODO: too many deferred ?
 				peer := zcSvc.Peers().GetByAddr(conn.RemoteAddr())
 				if peer == nil {
 					log.Warn().Stringer("address", conn.RemoteAddr()).Msg("unknown peer")
@@ -106,7 +105,7 @@ func main() {
 
 				// Secure the connection
 				sc, err := secret.SecureConnection(conn, &peerPublicKey, privkey)
-				go transport.HandleConnection(sc)
+				go transport.HandleConnection(sc, platformGateway)
 			}
 		}
 	}()
@@ -144,7 +143,7 @@ func main() {
 					panic(err)
 				}
 
-				go transport.HandleConnection(sc)
+				go transport.HandleConnection(sc, platformGateway)
 				transport.SendFile(request.File, sc)
 				_ = conn.Close()
 			}

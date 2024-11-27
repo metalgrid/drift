@@ -1,4 +1,4 @@
-package transfer
+package platform
 
 import (
 	"context"
@@ -12,9 +12,10 @@ type Request struct {
 }
 
 type Gateway interface {
-	Start(context.Context) (<-chan Request, error)
+	Run(context.Context) (<-chan Request, error)
 	Shutdown()
 	NewRequest(string, string) error
+	Ask(string) string
 }
 
 func NewGateway(peers *zeroconf.Peers) Gateway {

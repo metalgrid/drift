@@ -1,11 +1,15 @@
 //go:build linux
 // +build linux
 
-package transfer
+package platform
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
@@ -19,15 +23,20 @@ const (
 )
 
 type DBusGateway struct {
-	peers *zeroconf.Peers
-	reqch chan Request
+	mu            *sync.Mutex
+	conversations map[string]chan string
+	bus           *dbus.Conn
+	peers         *zeroconf.Peers
+	reqch         chan Request
 }
 
-func (g *DBusGateway) Start(ctx context.Context) (<-chan Request, error) {
+func (g *DBusGateway) Run(ctx context.Context) (<-chan Request, error) {
 	busConn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to session bus: %w", err)
 	}
+
+	g.bus = busConn
 
 	reply, err := busConn.RequestName(busName, dbus.NameFlagDoNotQueue)
 	if err != nil {
@@ -51,6 +60,15 @@ func (g *DBusGateway) Start(ctx context.Context) (<-chan Request, error) {
 			{
 				Name:    iface,
 				Methods: methods,
+				Signals: []introspect.Signal{
+					{
+						Name: iface + ".Question",
+						Args: []introspect.Arg{
+							{Name: "id", Type: "s"},
+							{Name: "question", Type: "s"},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -86,6 +104,47 @@ func (g *DBusGateway) Request(to, file string) *dbus.Error {
 	return nil
 }
 
+func (g *DBusGateway) Ask(question string) string {
+	idBytes := make([]byte, 32)
+	rand.Read(idBytes)
+	id := hex.EncodeToString(idBytes)
+	g.mu.Lock()
+	g.conversations[id] = make(chan string, 1)
+	g.mu.Unlock()
+
+	defer func() {
+		g.mu.Lock()
+		delete(g.conversations, id)
+		g.mu.Unlock()
+	}()
+
+	err := g.bus.Emit(objPath, iface+".Question", id, question)
+	if err != nil {
+		return ""
+	}
+
+	select {
+	case <-time.After(30 * time.Second):
+		return ""
+	case answer := <-g.conversations[id]:
+		return answer
+	}
+}
+
+func (g *DBusGateway) Respond(id, answer string) *dbus.Error {
+	g.mu.Lock()
+	conversation, ok := g.conversations[id]
+	g.mu.Unlock()
+
+	if !ok {
+		return dbus.NewError(iface+".NoSuchQuestion", []any{id})
+	}
+
+	conversation <- answer
+	close(conversation)
+	return nil
+}
+
 func (g *DBusGateway) ListPeers() ([]string, *dbus.Error) {
 	peers := g.peers.All()
 	res := make([]string, len(peers))
@@ -96,5 +155,11 @@ func (g *DBusGateway) ListPeers() ([]string, *dbus.Error) {
 }
 
 func newGateway(peers *zeroconf.Peers) Gateway {
-	return &DBusGateway{peers, make(chan Request)}
+	return &DBusGateway{
+		&sync.Mutex{},
+		make(map[string]chan string),
+		nil,
+		peers,
+		make(chan Request),
+	}
 }
