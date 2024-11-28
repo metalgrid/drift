@@ -123,6 +123,7 @@ func main() {
 			case request := <-transferRequests:
 				peer := zcSvc.Peers().GetByInstance(request.To)
 				if peer == nil {
+					platformGateway.Notify(fmt.Sprintf("User %s not found", request.To))
 					log.Warn().Str("peer", request.To).Msg("could not find peer")
 					continue
 				}
