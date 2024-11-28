@@ -143,7 +143,7 @@ func (g *DBusGateway) Ask(question string) string {
 }
 
 func (g *DBusGateway) Notify(message string) {
-	_ = g.bus.Emit(SigNotify, message)
+	_ = g.bus.Emit(objPath, SigNotify, message)
 }
 
 func (g *DBusGateway) Respond(id, answer string) *dbus.Error {
