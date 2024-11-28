@@ -56,14 +56,15 @@ class PersistentNotifierType extends Source {
     for (const [label, callback] of Object.entries(actions)) {
       notification.addAction(label, () => {
         callback();
-        notification.destroy();
       });
     }
 
     this.addNotification(notification);
   }
 
-  public _destroy(reason: NotificationDestroyedReason): void {
+  public _destroy(_reason: NotificationDestroyedReason): void {}
+
+  public real_destroy(reason: NotificationDestroyedReason): void {
     return super.destroy(reason);
   }
 }
@@ -116,6 +117,7 @@ const Drift = GObject.registerClass(
         icon: new Gio.ThemedIcon({ name: "mail-unread-symbolic" }),
         policy: new NotificationApplicationPolicy(serviceName),
       });
+      Main.messageTray.add(this.notifier);
 
       const icon = new $t.Icon({
         iconName: "send-to-symbolic",
@@ -179,8 +181,6 @@ const Drift = GObject.registerClass(
               this.driftService.RespondSync(id, "DECLINE");
             },
           });
-
-          Main.notify("Drift", `Question ${id}: ${message}`);
         }
       );
       this.subscriptions.push(subId);
@@ -206,7 +206,7 @@ const Drift = GObject.registerClass(
         this.notifier._destroy(NotificationDestroyedReason.SOURCE_CLOSED);
       }
 
-      super.destroy();
+      // super.destroy();
     }
   }
 );
