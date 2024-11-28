@@ -1,10 +1,4 @@
-<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
-<node name="/com/github/metalgrid/Drift">
-    <interface name="org.freedesktop.DBus.Introspectable">
-        <method name="Introspect">
-            <arg name="out" type="s" direction="out"></arg>
-        </method>
-    </interface>
+<node>
     <interface name="com.github.metalgrid.Drift">
         <method name="ListPeers">
             <arg type="as" direction="out"></arg>
@@ -13,5 +7,16 @@
             <arg type="s" direction="in"></arg>
             <arg type="s" direction="in"></arg>
         </method>
+        <method name="Respond">
+            <arg type="s" direction="in"></arg>
+            <arg type="s" direction="in"></arg>
+        </method>
+        <signal name="com.github.metalgrid.Drift.Question">
+            <arg name="id" type="s"></arg>
+            <arg name="question" type="s"></arg>
+        </signal>
+        <signal name="com.github.metalgrid.Drift.Notify">
+            <arg name="message" type="s"></arg>
+        </signal>
     </interface>
 </node>
