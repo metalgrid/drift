@@ -16,6 +16,7 @@ type Gateway interface {
 	Shutdown()
 	NewRequest(string, string) error
 	Ask(string) string
+	Notify(string)
 }
 
 func NewGateway(peers *zeroconf.Peers) Gateway {

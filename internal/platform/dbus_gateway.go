@@ -17,9 +17,13 @@ import (
 )
 
 const (
-	busName = "com.github.metalgrid.Drift"
-	objPath = "/com/github/metalgrid/Drift"
-	iface   = "com.github.metalgrid.Drift"
+	busName          = "com.github.metalgrid.Drift"
+	objPath          = "/com/github/metalgrid/Drift"
+	iface            = "com.github.metalgrid.Drift"
+	SigQuestion      = iface + ".Question"
+	SigNotify        = iface + ".Notify"
+	ErrNoSuchQestion = iface + ".NoSuchQuestion"
+	ResponseTimeout  = 30 * time.Second
 )
 
 type DBusGateway struct {
@@ -62,10 +66,16 @@ func (g *DBusGateway) Run(ctx context.Context) (<-chan Request, error) {
 				Methods: methods,
 				Signals: []introspect.Signal{
 					{
-						Name: iface + ".Question",
+						Name: SigQuestion,
 						Args: []introspect.Arg{
 							{Name: "id", Type: "s"},
 							{Name: "question", Type: "s"},
+						},
+					},
+					{
+						Name: SigNotify,
+						Args: []introspect.Arg{
+							{Name: "message", Type: "s"},
 						},
 					},
 				},
@@ -118,17 +128,22 @@ func (g *DBusGateway) Ask(question string) string {
 		g.mu.Unlock()
 	}()
 
-	err := g.bus.Emit(objPath, iface+".Question", id, question)
+	err := g.bus.Emit(objPath, SigQuestion, id, question)
 	if err != nil {
-		return ""
+		fmt.Println("failed to emit question:", err)
+		return "DECLINE"
 	}
 
 	select {
-	case <-time.After(30 * time.Second):
-		return ""
+	case <-time.After(ResponseTimeout):
+		return "DECLINE"
 	case answer := <-g.conversations[id]:
 		return answer
 	}
+}
+
+func (g *DBusGateway) Notify(message string) {
+	_ = g.bus.Emit(SigNotify, message)
 }
 
 func (g *DBusGateway) Respond(id, answer string) *dbus.Error {
@@ -137,7 +152,7 @@ func (g *DBusGateway) Respond(id, answer string) *dbus.Error {
 	g.mu.Unlock()
 
 	if !ok {
-		return dbus.NewError(iface+".NoSuchQuestion", []any{id})
+		return dbus.NewError(ErrNoSuchQestion, []any{id})
 	}
 
 	conversation <- answer

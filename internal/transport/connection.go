@@ -6,13 +6,10 @@ import (
 	"io"
 	"net"
 	"os"
-	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/metalgrid/drift/internal/platform"
 )
-
-const timeout = 3 * time.Second
 
 func HandleConnection(conn net.Conn, gw platform.Gateway) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
@@ -31,7 +28,7 @@ func HandleConnection(conn net.Conn, gw platform.Gateway) {
 
 		switch m := msg.(type) {
 		case error:
-			fmt.Printf("error: %+v", m)
+			gw.Notify(fmt.Sprintf("Error: %s", m))
 			return
 		case Offer:
 			answer := gw.Ask(fmt.Sprintf("Incoming file: %s (%s)", m.Filename, formatSize(m.Size)))
@@ -50,17 +47,18 @@ func HandleConnection(conn net.Conn, gw platform.Gateway) {
 
 			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Drift", m.Filename, m.Size, reader)
 			if err != nil {
-				fmt.Println("failed storing:", err)
+				gw.Notify(fmt.Sprintf("Failed storing file: %s", err))
 				return
 			}
+			gw.Notify(fmt.Sprintf("File received: %s", m.Filename))
 		case Answer:
-			fmt.Printf("answer: %+v", m)
 			if m.Accepted() {
 				err = sendFile("/etc/os-release", writer)
 				if err != nil {
-					fmt.Println("failed sending:", err)
+					gw.Notify(fmt.Sprintf("Failed sending file: %s", err))
 					return
 				}
+				gw.Notify(fmt.Sprintf("File sent: %s", "/etc/os-release"))
 			}
 		}
 	}
