@@ -6,7 +6,7 @@ import $t from "@girs/st-15";
 import Gio from "@girs/gio-2.0";
 import GLib from "@girs/glib-2.0";
 import GObject from "@girs/gobject-2.0";
-
+import * as DND from "@girs/gnome-shell/ui/dnd";
 import {
   Extension,
   gettext as _,
@@ -20,7 +20,7 @@ import {
   Source,
 } from "@girs/gnome-shell/ui/messageTray";
 import * as PanelMenu from "@girs/gnome-shell/ui/panelMenu";
-
+import { PopupMenu, PopupMenuItem } from "@girs/gnome-shell/ui/popupMenu";
 const serviceName = "com.github.metalgrid.Drift";
 const objPath = "/com/github/metalgrid/Drift";
 const ifaceName = "com.github.metalgrid.Drift";
@@ -104,15 +104,15 @@ const Drift = GObject.registerClass(
       );
 
       const [ok, buf] = GLib.file_get_contents(
-        `${this.extDir.get_path()}/schema/${serviceName}.xml`
+        `${this.extDir.get_path()}/schema/${ifaceName}.xml`
       );
       if (!ok) {
         logError(
           new Error(
-            `Failed to load schema for ${serviceName} from ${this.extDir}`
+            `Failed to load schema for ${ifaceName} from ${this.extDir}`
           )
         );
-        throw new Error(`Failed to load schema for ${serviceName}`);
+        throw new Error(`Failed to load schema for ${ifaceName}`);
       }
       this.driftService = createProxy(
         Gio.DBus.session,
@@ -140,6 +140,11 @@ const Drift = GObject.registerClass(
         this.driftOnline.bind(this),
         this.driftOffline.bind(this)
       );
+    }
+
+    acceptDrop(source, actor, x, y, time) {
+      log("Accept drop");
+      return true;
     }
 
     driftOnline() {
@@ -195,11 +200,18 @@ const Drift = GObject.registerClass(
       this.subscriptions.push(subId);
 
       this.connect("button-press-event", () => {
+        // TS doesn't know that this.menu is always a PopupMenu
+        this.menu = this.menu as PopupMenu;
         const [peers] = this.driftService.ListPeersSync();
         log(`${peers.length} peers found`);
         peers.forEach((peer) => {
-          log(`Peer: ${peer}`);
+          (this.menu as PopupMenu).addMenuItem(new PopupMenuItem(peer));
         });
+
+        const i = new PopupMenuItem("peer");
+        i.connect("activate", () => {});
+        this.menu.addMenuItem(i); // FIXME:  adds a menu item every time
+        this.menu.open(true);
       });
 
       this.icon.styleClass = "system-status-icon icon-online";
