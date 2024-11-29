@@ -11,6 +11,7 @@ import {
   Extension,
   gettext as _,
 } from "@girs/gnome-shell/extensions/extension";
+import "@girs/gnome-shell/extensions/global";
 import * as Main from "@girs/gnome-shell/ui/main";
 import {
   Notification,
@@ -88,11 +89,19 @@ const Drift = GObject.registerClass(
     public extDir: Gio.File;
     private notifier: PersistentNotifierType;
     private subscriptions: number[] = [];
+    private icon: $t.Icon;
 
     public constructor(path: Gio.File, args: ButtonProps) {
       //@ts-expect-error // Smells like a TS bug. ButtonProps *is* a union of tuples.
       super(...args);
       this.extDir = path;
+
+      const theme = $t.ThemeContext.get_for_stage(
+        global.get_stage()
+      ).get_theme();
+      theme.load_stylesheet(
+        Gio.file_new_for_path(`${this.extDir.get_path()}/stylesheet.css`)
+      );
 
       const [ok, buf] = GLib.file_get_contents(
         `${this.extDir.get_path()}/schema/${serviceName}.xml`
@@ -119,11 +128,11 @@ const Drift = GObject.registerClass(
       });
       Main.messageTray.add(this.notifier);
 
-      const icon = new $t.Icon({
-        iconName: "send-to-symbolic",
+      this.icon = new $t.Icon({
+        iconName: "drift-symbolic",
         styleClass: "system-status-icon",
       });
-      this.add_child(icon);
+      this.add_child(this.icon);
 
       this.bus.watch_name(
         serviceName,
@@ -192,6 +201,8 @@ const Drift = GObject.registerClass(
           log(`Peer: ${peer}`);
         });
       });
+
+      this.icon.styleClass = "system-status-icon icon-online";
     }
 
     driftOffline() {
@@ -199,14 +210,13 @@ const Drift = GObject.registerClass(
       this.subscriptions.forEach((subId) => {
         this.bus.signal_unsubscribe(subId);
       });
+      this.icon.styleClass = "system-status-icon icon-offline";
     }
 
     override destroy(): void {
       if (this.notifier) {
         this.notifier._destroy(NotificationDestroyedReason.SOURCE_CLOSED);
       }
-
-      // super.destroy();
     }
   }
 );

@@ -32,10 +32,14 @@ build({
     const metaDist = resolve(__dirname, 'dist/metadata.json');
     const schemaSrc = resolve(__dirname, 'src/schema');
     const schemaDst = resolve(__dirname, 'dist/schema');
+    const styleSrc = resolve(__dirname, "src/stylesheet.css");
+    const styleDst = resolve(__dirname, "dist/stylesheet.css");
     const zipFilename = `${metadata.uuid}.zip`;
     const zipDist = resolve(__dirname, zipFilename);
+
     copyFileSync(metaSrc, metaDist);
     cpSync(schemaSrc, schemaDst, { recursive: true });
+    copyFileSync(styleSrc, styleDst);
 
     const zip = new AdmZip();
     zip.addLocalFolder(resolve(__dirname, 'dist'));

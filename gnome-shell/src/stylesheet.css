@@ -1,1 +1,9 @@
 /* Add your custom extension styling here */
+
+.icon-offline {
+  color: -st-accent-color;
+}
+
+.icon-online {
+  color: #a683d9;
+}
