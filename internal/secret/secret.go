@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"fmt"
 	"io"
 	"net"
 
@@ -194,11 +195,19 @@ type WrappedConnection struct {
 }
 
 func (w *WrappedConnection) Read(p []byte) (n int, err error) {
-	return w.reader.Read(p)
+	n, err = w.reader.Read(p)
+	if err != nil {
+		return n, fmt.Errorf("read error: %w", err)
+	}
+	return n, err
 }
 
 func (w *WrappedConnection) Write(p []byte) (n int, err error) {
-	return w.writer.Write(p)
+	n, err = w.writer.Write(p)
+	if err != nil {
+		return n, fmt.Errorf("write error: %w", err)
+	}
+	return n, err
 }
 
 // SecureConnection establishes a secure connection with the peer by using the *remote* public key and the *local* private key

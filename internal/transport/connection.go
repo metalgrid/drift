@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,7 +12,7 @@ import (
 	"github.com/metalgrid/drift/internal/platform"
 )
 
-func HandleConnection(conn net.Conn, gw platform.Gateway) {
+func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -53,12 +54,13 @@ func HandleConnection(conn net.Conn, gw platform.Gateway) {
 			gw.Notify(fmt.Sprintf("File received: %s", m.Filename))
 		case Answer:
 			if m.Accepted() {
-				err = sendFile("/etc/os-release", writer)
+				file := ctx.Value("filename").(string)
+				err = sendFile(file, writer)
 				if err != nil {
-					gw.Notify(fmt.Sprintf("Failed sending file: %s", err))
+					gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
 					return
 				}
-				gw.Notify(fmt.Sprintf("File sent: %s", "/etc/os-release"))
+				gw.Notify(fmt.Sprintf("File sent: %s", file))
 			}
 		}
 	}

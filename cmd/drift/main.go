@@ -105,7 +105,7 @@ func main() {
 
 				// Secure the connection
 				sc, err := secret.SecureConnection(conn, &peerPublicKey, privkey)
-				go transport.HandleConnection(sc, platformGateway)
+				go transport.HandleConnection(appCtx, sc, platformGateway)
 			}
 		}
 	}()
@@ -144,7 +144,7 @@ func main() {
 					panic(err)
 				}
 
-				go transport.HandleConnection(sc, platformGateway)
+				go transport.HandleConnection(context.WithValue(appCtx, "filename", request.File), sc, platformGateway)
 				transport.SendFile(request.File, sc)
 			}
 		}
