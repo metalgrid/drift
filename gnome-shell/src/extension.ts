@@ -203,7 +203,8 @@ const Drift = GObject.registerClass(
           const menuItem = new PopupMenuItem(peer);
           menuItem.connect("activate", () => {
             this.selectFile().then((uris) => {
-              this.driftService.RequestSync(peer, uris[0]);
+              const file = Gio.File.new_for_uri(uris[0]!);
+              this.driftService.RequestSync(peer, file.get_path()!);
             });
           });
           (this.menu as PopupMenu).addMenuItem(menuItem);
