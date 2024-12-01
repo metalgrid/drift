@@ -6,7 +6,6 @@ import $t from "@girs/st-15";
 import Gio from "@girs/gio-2.0";
 import GLib from "@girs/glib-2.0";
 import GObject from "@girs/gobject-2.0";
-import * as DND from "@girs/gnome-shell/ui/dnd";
 import {
   Extension,
   gettext as _,
@@ -142,11 +141,6 @@ const Drift = GObject.registerClass(
       );
     }
 
-    acceptDrop(source, actor, x, y, time) {
-      log("Accept drop");
-      return true;
-    }
-
     driftOnline() {
       let subId = this.bus.signal_subscribe(
         serviceName,
@@ -204,17 +198,64 @@ const Drift = GObject.registerClass(
         this.menu = this.menu as PopupMenu;
         const [peers] = this.driftService.ListPeersSync();
         log(`${peers.length} peers found`);
+        this.menu.removeAll();
         peers.forEach((peer) => {
-          (this.menu as PopupMenu).addMenuItem(new PopupMenuItem(peer));
+          const menuItem = new PopupMenuItem(peer);
+          menuItem.connect("activate", () => {
+            this.selectFile().then((uris) => {
+              this.driftService.RequestSync(peer, uris[0]);
+            });
+          });
+          (this.menu as PopupMenu).addMenuItem(menuItem);
         });
 
-        const i = new PopupMenuItem("peer");
-        i.connect("activate", () => {});
-        this.menu.addMenuItem(i); // FIXME:  adds a menu item every time
         this.menu.open(true);
       });
 
       this.icon.styleClass = "system-status-icon icon-online";
+    }
+
+    // This uses the freedesktop portal to show a file selection dialog.
+    // Probably not the cleanest way, but I can't figure out a simpler convenient way.
+    selectFile() {
+      return new Promise<string[]>((resolve, reject) => {
+        this.bus
+          .call(
+            "org.freedesktop.portal.Desktop",
+            "/org/freedesktop/portal/desktop",
+            "org.freedesktop.portal.FileChooser",
+            "OpenFile",
+            GLib.Variant.new_tuple([
+              GLib.Variant.new_string(""),
+              GLib.Variant.new_string(_("Send file")),
+              new GLib.Variant("a{sv}", {
+                handle_token: GLib.Variant.new_string(`drift_${Date.now()}`),
+                accept_label: GLib.Variant.new_string(_("Send")),
+              }),
+            ]),
+            null,
+            null,
+            -1,
+            null
+          )
+          .then((result) => {
+            const [handle] = result.deepUnpack<[string]>();
+
+            this.bus.signal_subscribe(
+              "org.freedesktop.portal.Desktop",
+              "org.freedesktop.portal.Request",
+              "Response",
+              handle,
+              null,
+              Gio.DBusSignalFlags.NONE,
+              (_sender, _iface, _path, _name, _signal, params) => {
+                const [_, { uris }] = params.recursiveUnpack() as any;
+                resolve(uris);
+              }
+            );
+          })
+          .catch((e) => reject(e));
+      });
     }
 
     driftOffline() {
