@@ -1,4 +1,5 @@
 {
+	"type": "module",
 	"devDependencies": {
 		"@girs/gio-2.0": "2.82.2-4.0.0-beta.19",
 		"@girs/gjs": "4.0.0-beta.19",
