@@ -62,8 +62,6 @@ class PersistentNotifierType extends Source {
     this.addNotification(notification);
   }
 
-  public _destroy(_reason: NotificationDestroyedReason): void {}
-
   public real_destroy(reason: NotificationDestroyedReason): void {
     return super.destroy(reason);
   }
@@ -269,8 +267,9 @@ const Drift = GObject.registerClass(
 
     override destroy(): void {
       if (this.notifier) {
-        this.notifier._destroy(NotificationDestroyedReason.SOURCE_CLOSED);
+        this.notifier.real_destroy(NotificationDestroyedReason.SOURCE_CLOSED);
       }
+      super.destroy();
     }
   }
 );
