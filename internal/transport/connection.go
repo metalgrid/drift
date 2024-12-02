@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/adrg/xdg"
 	"github.com/metalgrid/drift/internal/platform"
@@ -16,7 +17,6 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
 
 	for {
 		raw, err := reader.ReadString(byte(endOfMessage))
@@ -46,7 +46,8 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 				return
 			}
 
-			err = storeFile(xdg.UserDirs.Download+string(os.PathSeparator)+"Drift", m.Filename, m.Size, reader)
+			fp := filepath.Join(xdg.UserDirs.Download, "Drift")
+			err = storeFile(fp, m.Filename, m.Size, conn)
 			if err != nil {
 				gw.Notify(fmt.Sprintf("Failed storing file: %s", err))
 				return
@@ -55,7 +56,7 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 		case Answer:
 			if m.Accepted() {
 				file := ctx.Value("filename").(string)
-				err = sendFile(file, writer)
+				err = sendFile(file, conn)
 				if err != nil {
 					gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
 					return
@@ -66,41 +67,41 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 	}
 }
 
-func storeFile(incoming, file string, size int64, reader *bufio.Reader) error {
+func storeFile(incoming, file string, size int64, reader io.Reader) error {
 	err := os.MkdirAll(incoming, 0777)
 
 	if err != nil {
 		return err
 	}
 
-	filepath := incoming + string(os.PathSeparator) + file
+	fp := filepath.Join(incoming, file)
 	// f, err := os.Create(filepath)
 	f, err := os.CreateTemp(incoming, file+"*.drift")
 	if err != nil {
 		return err
 	}
 
-	_, err = io.CopyN(f, reader, size)
-
+	lr := io.LimitReader(reader, size)
+	bytes, err := f.ReadFrom(lr)
+	_ = bytes
 	_ = f.Close()
 	if err != nil {
 		// if we're able to create the file, we should be able to remove it as well
 		_ = os.Remove(f.Name())
 		return err
 	}
-	return os.Rename(f.Name(), filepath)
+	return os.Rename(f.Name(), fp)
 }
 
-func sendFile(file string, writer *bufio.Writer) error {
+func sendFile(file string, writer io.Writer) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	_, err = io.Copy(writer, f)
-	_ = writer.Flush()
-
+	bytes, err := f.WriteTo(writer)
+	_ = bytes
 	return err
 }
 

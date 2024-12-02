@@ -174,7 +174,14 @@ func (svc *ZeroconfService) Peers() *Peers {
 	return svc.peers
 }
 
-func NewZeroconfService(port int, pubkey string) (*ZeroconfService, error) {
+type ZeroconfOptions struct {
+	Identity string
+}
+
+func NewZeroconfService(port int, pubkey string, options *ZeroconfOptions) (*ZeroconfService, error) {
+
+	var identity string
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("failed determining local machine's hostname")
@@ -190,10 +197,17 @@ func NewZeroconfService(port int, pubkey string) (*ZeroconfService, error) {
 		username = user.Name
 	}
 
+	identity = fmt.Sprintf("%s’s %s", username, hostname)
+	if options != nil {
+		if options.Identity != "" {
+			identity = options.Identity
+		}
+	}
+
 	svc := &ZeroconfService{
 		servicePort: port,
 		pubkey:      pubkey,
-		instance:    fmt.Sprintf("%s’s %s", username, hostname),
+		instance:    identity,
 		peers: &Peers{
 			mu:    &sync.RWMutex{},
 			peers: make(map[string]*PeerInfo),

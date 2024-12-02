@@ -75,17 +75,11 @@ func NewEncryptWriter(w io.Writer, recipientPublicKey EncryptionKey) (*EncryptWr
 		return nil, err
 	}
 
-	// Generate a random nonce.
+	// Initialize sequential nonce.
 	nonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
-	}
 
-	// Write the ephemeral public key and nonce to the underlying writer.
+	// Write the ephemeral public key to the underlying writer.
 	if _, err := w.Write(publicKey[:]); err != nil {
-		return nil, err
-	}
-	if _, err := w.Write(nonce); err != nil {
 		return nil, err
 	}
 
@@ -97,11 +91,28 @@ func NewEncryptWriter(w io.Writer, recipientPublicKey EncryptionKey) (*EncryptWr
 	}, nil
 }
 
-// Write encrypts the data and writes it to the underlying writer.
 func (ew *EncryptWriter) Write(data []byte) (int, error) {
+	// Encrypt the data.
 	encrypted := ew.aead.Seal(nil, ew.nonce, data, nil)
-	n, err := ew.writer.Write(encrypted)
-	return n, err
+	incrementNonce(ew.nonce)
+
+	// Write the length of the encrypted data (4 bytes, big-endian).
+	length := uint32(len(encrypted))
+	lengthBuf := make([]byte, 4)
+	lengthBuf[0] = byte(length >> 24)
+	lengthBuf[1] = byte(length >> 16)
+	lengthBuf[2] = byte(length >> 8)
+	lengthBuf[3] = byte(length)
+
+	if _, err := ew.writer.Write(lengthBuf); err != nil {
+		return 0, err
+	}
+
+	// Write the encrypted data.
+	_, err := ew.writer.Write(encrypted)
+
+	// Return the original length of the data not to confuse the caller.
+	return len(data), err
 }
 
 // DecryptReader decrypts data using AES-GCM and reads from the underlying reader.
@@ -139,11 +150,8 @@ func NewDecryptReader(r io.Reader, recipientPrivateKey EncryptionKey) (*DecryptR
 		return nil, err
 	}
 
-	// Read the nonce.
+	// Initialize sequential nonce.
 	nonce := make([]byte, aead.NonceSize())
-	if _, err := io.ReadFull(r, nonce); err != nil {
-		return nil, err
-	}
 
 	return &DecryptReader{
 		reader: r,
@@ -152,41 +160,37 @@ func NewDecryptReader(r io.Reader, recipientPrivateKey EncryptionKey) (*DecryptR
 	}, nil
 }
 
-// Read decrypts the data and reads from the underlying reader.
 func (dr *DecryptReader) Read(buf []byte) (int, error) {
-	n, err := dr.reader.Read(buf)
-	if err != nil && err != io.EOF {
-		return n, err
+	// Read the length of the encrypted data (4 bytes, big-endian).
+	lengthBuf := make([]byte, 4)
+	if _, err := io.ReadFull(dr.reader, lengthBuf); err != nil {
+		return 0, err
 	}
+	length := (uint32(lengthBuf[0]) << 24) |
+		(uint32(lengthBuf[1]) << 16) |
+		(uint32(lengthBuf[2]) << 8) |
+		uint32(lengthBuf[3])
 
-	decrypted, err := dr.aead.Open(nil, dr.nonce, buf[:n], nil)
-	if err != nil {
+	// Allocate a buffer to hold the encrypted data.
+	encrypted := make([]byte, length)
+	if _, err := io.ReadFull(dr.reader, encrypted); err != nil {
 		return 0, err
 	}
 
+	// Decrypt the data.
+	decrypted, decryptErr := dr.aead.Open(nil, dr.nonce, encrypted, nil)
+	if decryptErr != nil {
+		return 0, fmt.Errorf("decryption error: %w", decryptErr)
+	}
+
+	// Increment the nonce after each decryption.
+	incrementNonce(dr.nonce)
+
+	// Copy the decrypted data into the provided buffer.
 	copy(buf, decrypted)
+
 	return len(decrypted), nil
 }
-
-// func main() {
-// 	// Generate X25519 key pair for the recipient.
-// 	privateKey, publicKey, _ := GenerateX25519KeyPair()
-
-// 	// Data to encrypt.
-// 	data := "This is a secret message!"
-
-// 	// Encrypt the data.
-// 	encBuf := &bytes.Buffer{}
-// 	encWriter, _ := NewEncryptWriter(encBuf, publicKey)
-// 	encWriter.Write([]byte(data))
-
-// 	// Decrypt the data.
-// 	decReader, _ := NewDecryptReader(encBuf, privateKey)
-// 	decBuf := make([]byte, len(data))
-// 	decReader.Read(decBuf)
-
-// 	fmt.Println("Decrypted message:", string(decBuf))
-// }
 
 type WrappedConnection struct {
 	net.Conn
@@ -210,6 +214,11 @@ func (w *WrappedConnection) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
+func (w *WrappedConnection) Close() error {
+	fmt.Println("Closing connection")
+	return w.Conn.Close()
+}
+
 // SecureConnection establishes a secure connection with the peer by using the *remote* public key and the *local* private key
 func SecureConnection(conn net.Conn, peerPublicKey, localPrivateKey EncryptionKey) (net.Conn, error) {
 	writer, err := NewEncryptWriter(conn, peerPublicKey)
@@ -228,4 +237,13 @@ func SecureConnection(conn net.Conn, peerPublicKey, localPrivateKey EncryptionKe
 		writer,
 	}, nil
 
+}
+
+func incrementNonce(nonce []byte) {
+	for i := len(nonce) - 1; i >= 0; i-- {
+		nonce[i]++
+		if nonce[i] != 0 {
+			break
+		}
+	}
 }

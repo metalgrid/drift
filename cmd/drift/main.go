@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -18,6 +19,15 @@ import (
 )
 
 func main() {
+
+	var zcOpts *zeroconf.ZeroconfOptions = nil
+
+	if len(os.Args) > 1 {
+		zcOpts = &zeroconf.ZeroconfOptions{
+			Identity: os.Args[1],
+		}
+	}
+
 	privkey, pubkey, err := secret.GenerateX25519KeyPair()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating encryption keys")
@@ -32,7 +42,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed listening for connections")
 	}
 
-	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", *pubkey))
+	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", *pubkey), zcOpts)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating zeroconf service")
 	}
