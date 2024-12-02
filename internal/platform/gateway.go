@@ -12,13 +12,16 @@ type Request struct {
 }
 
 type Gateway interface {
-	Run(context.Context) (<-chan Request, error)
+	// Run starts the platform-dependent logic. Blocks execution until the context is cancelled.
+	// This method may call FFI or UI event loops, so it's guaranteed to run on the main thread.
+	// Using `runtime.LockOSThread()` in implementations is encouraged.
+	Run(context.Context) error
 	Shutdown()
 	NewRequest(string, string) error
 	Ask(string) string
 	Notify(string)
 }
 
-func NewGateway(peers *zeroconf.Peers) Gateway {
-	return newGateway(peers)
+func NewGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {
+	return newGateway(peers, requests)
 }

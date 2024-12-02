@@ -19,11 +19,10 @@ import (
 )
 
 func main() {
-
-	var zcOpts *zeroconf.ZeroconfOptions = nil
+	var opts *zeroconf.ZeroconfOptions = nil
 
 	if len(os.Args) > 1 {
-		zcOpts = &zeroconf.ZeroconfOptions{
+		opts = &zeroconf.ZeroconfOptions{
 			Identity: os.Args[1],
 		}
 	}
@@ -42,7 +41,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed listening for connections")
 	}
 
-	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", *pubkey), zcOpts)
+	zcSvc, err := zeroconf.NewZeroconfService(servicePort, fmt.Sprintf("%x", *pubkey), opts)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed creating zeroconf service")
 	}
@@ -59,12 +58,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed advertising ourselves")
 	}
 
-	platformGateway := platform.NewGateway(zcSvc.Peers())
-	transferRequests, err := platformGateway.Run(appCtx)
+	transferRequests := make(chan platform.Request)
+	platformGateway := platform.NewGateway(zcSvc.Peers(), transferRequests)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed starting transfer gateway")
 	}
 
+	// Connection error handling
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -134,24 +134,27 @@ func main() {
 				peer := zcSvc.Peers().GetByInstance(request.To)
 				if peer == nil {
 					platformGateway.Notify(fmt.Sprintf("User %s not found", request.To))
-					log.Warn().Str("peer", request.To).Msg("could not find peer")
 					continue
 				}
+
 				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
 				if err != nil {
-					log.Error().Err(err).Str("peer", peer.Instance).Msg("failed to connect to peer")
+					platformGateway.Notify(fmt.Sprintf("Unable to connect to peer: %s", err))
 					return
 				}
+
 				pk, err := hex.DecodeString(peer.GetRecord("pk"))
 				if err != nil {
-					panic(err)
+					platformGateway.Notify(fmt.Sprintf("Unable to retrieve peer's public key: %s", err))
+					return
 				}
 
 				var peerpk [32]byte
 				copy(peerpk[:], pk)
+
 				sc, err := secret.SecureConnection(conn, &peerpk, privkey)
 				if err != nil {
-					panic(err)
+					platformGateway.Notify(fmt.Sprintf("Unable to secure connection with peer: %s", err))
 				}
 
 				go transport.HandleConnection(context.WithValue(appCtx, "filename", request.File), sc, platformGateway)
@@ -160,5 +163,10 @@ func main() {
 		}
 	}()
 
+	err = platformGateway.Run(appCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("platform gateway failed")
+		shutdown()
+	}
 	wg.Wait()
 }

@@ -31,29 +31,29 @@ type DBusGateway struct {
 	conversations map[string]chan string
 	bus           *dbus.Conn
 	peers         *zeroconf.Peers
-	reqch         chan Request
+	reqch         chan<- Request
 }
 
-func (g *DBusGateway) Run(ctx context.Context) (<-chan Request, error) {
+func (g *DBusGateway) Run(ctx context.Context) error {
 	busConn, err := dbus.ConnectSessionBus()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to session bus: %w", err)
+		return fmt.Errorf("failed to connect to session bus: %w", err)
 	}
 
 	g.bus = busConn
 
 	reply, err := busConn.RequestName(busName, dbus.NameFlagDoNotQueue)
 	if err != nil {
-		return nil, fmt.Errorf("failed to request name: %w", err)
+		return fmt.Errorf("failed to request name: %w", err)
 	}
 
 	if reply != dbus.RequestNameReplyPrimaryOwner {
-		return nil, fmt.Errorf("service already registered")
+		return fmt.Errorf("service already registered")
 	}
 
 	err = busConn.Export(g, objPath, iface)
 	if err != nil {
-		return nil, fmt.Errorf("failed to export object: %w", err)
+		return fmt.Errorf("failed to export object: %w", err)
 	}
 
 	methods := introspect.Methods(g)
@@ -86,15 +86,13 @@ func (g *DBusGateway) Run(ctx context.Context) (<-chan Request, error) {
 	err = busConn.Export(introspect.NewIntrospectable(i8t), objPath, "org.freedesktop.DBus.Introspectable")
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to export introspectable: %w", err)
+		return fmt.Errorf("failed to export introspectable: %w", err)
 	}
 
-	go func() {
-		<-ctx.Done()
-		_ = busConn.Close()
-	}()
+	<-ctx.Done()
+	_ = busConn.Close()
 
-	return g.reqch, nil
+	return nil
 }
 
 func (g *DBusGateway) Shutdown() {
@@ -169,12 +167,12 @@ func (g *DBusGateway) ListPeers() ([]string, *dbus.Error) {
 	return res, nil
 }
 
-func newGateway(peers *zeroconf.Peers) Gateway {
+func newGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {
 	return &DBusGateway{
 		&sync.Mutex{},
 		make(map[string]chan string),
 		nil,
 		peers,
-		make(chan Request),
+		requests,
 	}
 }
