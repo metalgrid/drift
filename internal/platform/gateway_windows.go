@@ -3,7 +3,7 @@
 
 package platform
 
-//go:generate go run github.com/akavel/rsrc@latest -manifest ../../windows/drift.manifest
+//go:generate go run github.com/akavel/rsrc@latest -manifest ../../windows/drift.manifest -ico ../../windows/drift.ico
 
 import (
 	"context"
