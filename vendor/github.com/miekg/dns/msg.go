@@ -402,7 +402,15 @@ Loop:
 			if budget <= 0 {
 				return "", lenmsg, ErrLongDomain
 			}
-			s = append(s, msg[off:off+c]...)
+			for _, b := range msg[off : off+c] {
+				if isDomainNameLabelSpecial(b) {
+					s = append(s, '\\', b)
+				} else if b < ' ' || b > '~' {
+					s = append(s, escapeByte(b)...)
+				} else {
+					s = append(s, b)
+				}
+			}
 			s = append(s, '.')
 			off += c
 		case 0xC0:

@@ -46,17 +46,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed creating zeroconf service")
 	}
 
+	err = zcSvc.Start(appCtx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed starting zeroconf service")
+	}
 	defer zcSvc.Shutdown()
-
-	err = zcSvc.Discover(appCtx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed discovering local services")
-	}
-
-	err = zcSvc.Advertise()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed advertising ourselves")
-	}
 
 	transferRequests := make(chan platform.Request)
 	platformGateway := platform.NewGateway(zcSvc.Peers(), transferRequests)
@@ -98,14 +92,14 @@ func main() {
 
 				pk := peer.GetRecord("pk")
 				if pk == "" {
-					log.Warn().Str("peer", peer.GetInstance()).Msg("public key not found")
+					log.Warn().Str("peer", peer.Instance).Msg("public key not found")
 					_ = conn.Close()
 					continue
 				}
 
 				decodedKey, err := hex.DecodeString(pk)
 				if err != nil {
-					log.Warn().Str("peer", peer.GetInstance()).Str("pk", pk).Err(err).Msg("invalid public key")
+					log.Warn().Str("peer", peer.Instance).Str("pk", pk).Err(err).Msg("invalid public key")
 					_ = conn.Close()
 					continue
 				}
@@ -137,7 +131,7 @@ func main() {
 					continue
 				}
 
-				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.AddrIPv4[0], peer.Port))
+				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.Addresses[0], peer.Port))
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to connect to peer: %s", err))
 					return
