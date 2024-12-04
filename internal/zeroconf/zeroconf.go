@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"net/netip"
 	"os"
 	"os/user"
 	"runtime"
@@ -13,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	zc "github.com/grandcat/zeroconf"
+	zc "github.com/betamos/zeroconf"
 )
 
 const (
@@ -22,7 +23,16 @@ const (
 )
 
 type PeerInfo struct {
-	*zc.ServiceEntry
+	Service   string
+	Instance  string
+	Domain    string
+	Port      int
+	Records   []string
+	Addresses []netip.Addr
+}
+
+func (pi *PeerInfo) String() string {
+	return fmt.Sprintf("%s.%s.%s", pi.Instance, pi.Service, pi.Domain)
 }
 
 func (pi *PeerInfo) GetInstance() string {
@@ -37,7 +47,7 @@ func (pi *PeerInfo) GetRecord(key string) string {
 	// mDNS/Zeroconf text entries are a string in the form key=value,
 	// so we add the equal sign to ensure exact lookup.
 	key += "="
-	for _, record := range pi.Text {
+	for _, record := range pi.Records {
 		if strings.HasPrefix(record, key) {
 			return record[len(key):]
 		}
@@ -81,13 +91,13 @@ func (p *Peers) GetByInstance(instance string) *PeerInfo {
 }
 
 func (p *Peers) GetByAddr(addr net.Addr) *PeerInfo {
-	remoteIP := addr.(*net.TCPAddr).IP
+	remoteIP := netip.MustParseAddrPort(addr.String())
 
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	for _, pi := range p.peers {
-		if slices.ContainsFunc(append(pi.AddrIPv4, pi.AddrIPv6...), func(ip net.IP) bool {
-			return ip.Equal(remoteIP)
+		if slices.ContainsFunc(pi.Addresses, func(ip netip.Addr) bool {
+			return ip == remoteIP.Addr()
 		}) {
 			return pi
 		}
@@ -98,7 +108,13 @@ func (p *Peers) GetByAddr(addr net.Addr) *PeerInfo {
 func (p *Peers) add(pi *PeerInfo) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.peers[pi.ServiceInstanceName()] = pi
+	p.peers[pi.String()] = pi
+}
+
+func (p *Peers) remove(key string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.peers, key)
 }
 
 type ZeroconfService struct {
@@ -106,68 +122,42 @@ type ZeroconfService struct {
 	pubkey      string
 	instance    string
 	peers       *Peers
-	server      *zc.Server
+	client      *zc.Client
 }
 
 func (svc *ZeroconfService) Shutdown() {
-	svc.server.Shutdown()
+	_ = svc.client.Close()
 }
 
-func (svc *ZeroconfService) Advertise() error {
-	var err error
-	svc.server, err = zc.Register(
-		svc.instance,
-		serviceType,
-		serviceDomain,
-		svc.servicePort,
-		[]string{
-			"v=0.1",
-			"pk=" + svc.pubkey,
-			"os=" + runtime.GOOS,
-		},
-		nil,
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed registering to zeroconf: %w", err)
+func (svc *ZeroconfService) Start(ctx context.Context) error {
+	kind := zc.NewType(serviceType)
+	service := zc.NewService(kind, svc.instance, uint16(svc.servicePort))
+	service.Text = []string{
+		"v=0.1",
+		"pk=" + svc.pubkey,
+		"os=" + runtime.GOOS,
 	}
 
-	svc.server.TTL(300)
+	svc.client.Publish(service)
 
-	return err
-}
-
-func (svc *ZeroconfService) Discover(ctx context.Context) error {
-	resolver, err := zc.NewResolver(nil)
-	if err != nil {
-		return fmt.Errorf("failed initializing service discovery: %w", err)
-	}
-
-	entries := make(chan *zc.ServiceEntry)
-
-	err = resolver.Browse(ctx, serviceType, serviceDomain, entries)
-	if err != nil {
-		return fmt.Errorf("failed discovering services: %w", err)
-	}
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case service := <-entries:
-				// Skip ourselves
-				if service.Instance == svc.instance {
-					continue
-				}
-				svc.peers.add(&PeerInfo{
-					ServiceEntry: service,
-				})
-			}
+	svc.client.Browse(func(e zc.Event) {
+		fmt.Println(e.String())
+		switch e.Op {
+		case zc.OpAdded, zc.OpUpdated:
+			svc.peers.add(&PeerInfo{
+				Service:   e.Type.Name,
+				Domain:    e.Type.Domain,
+				Instance:  e.Name,
+				Records:   e.Text,
+				Addresses: e.Addrs,
+			})
+		case zc.OpRemoved:
+			svc.peers.remove(e.Service.String())
 		}
-	}()
+	}, kind)
 
-	return nil
+	_, err := svc.client.Open()
+	return err
 }
 
 func (svc *ZeroconfService) Peers() *Peers {
@@ -204,6 +194,8 @@ func NewZeroconfService(port int, pubkey string, options *ZeroconfOptions) (*Zer
 		}
 	}
 
+	client := zc.New()
+
 	svc := &ZeroconfService{
 		servicePort: port,
 		pubkey:      pubkey,
@@ -212,7 +204,7 @@ func NewZeroconfService(port int, pubkey string, options *ZeroconfOptions) (*Zer
 			mu:    &sync.RWMutex{},
 			peers: make(map[string]*PeerInfo),
 		},
-		server: nil,
+		client: client,
 	}
 
 	return svc, nil
