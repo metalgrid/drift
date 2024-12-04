@@ -141,7 +141,6 @@ func (svc *ZeroconfService) Start(ctx context.Context) error {
 	svc.client.Publish(service)
 
 	svc.client.Browse(func(e zc.Event) {
-		fmt.Println(e.String())
 		switch e.Op {
 		case zc.OpAdded, zc.OpUpdated:
 			svc.peers.add(&PeerInfo{
