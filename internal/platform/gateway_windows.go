@@ -28,17 +28,17 @@ func (g *Win32Gateway) Run(ctx context.Context) error {
 		return fmt.Errorf("platform initialization failed: %w", err)
 	}
 
-	// icon, err := walk.NewIconFromResource("icon")
-	// if err != nil {
-	// 	return fmt.Errorf("failed setting app icon: %w", err)
-	// }
+	icon, err := walk.NewIconFromResource("#1")
+	if err != nil {
+		return fmt.Errorf("failed setting app icon: %w", err)
+	}
 
 	tray, err := walk.NewNotifyIcon()
 	if err != nil {
 		return fmt.Errorf("failed creating notification icon: %w", err)
 	}
 
-	// err = tray.SetIcon(icon)
+	err = tray.SetIcon(icon)
 	if err != nil {
 		return fmt.Errorf("failed setting app icon: %w", err)
 	}
