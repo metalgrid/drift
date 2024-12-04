@@ -147,6 +147,7 @@ func (svc *ZeroconfService) Start(ctx context.Context) error {
 			svc.peers.add(&PeerInfo{
 				Service:   e.Type.Name,
 				Domain:    e.Type.Domain,
+				Port:      int(e.Port),
 				Instance:  e.Name,
 				Records:   e.Text,
 				Addresses: e.Addrs,
