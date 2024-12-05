@@ -27,12 +27,24 @@ github.com/miekg/dns
 # github.com/progrium/darwinkit v0.5.0
 ## explicit; go 1.18
 github.com/progrium/darwinkit/dispatch
+github.com/progrium/darwinkit/helper/action
 github.com/progrium/darwinkit/kernel
+github.com/progrium/darwinkit/macos
+github.com/progrium/darwinkit/macos/appkit
+github.com/progrium/darwinkit/macos/cloudkit
+github.com/progrium/darwinkit/macos/coredata
 github.com/progrium/darwinkit/macos/corefoundation
 github.com/progrium/darwinkit/macos/coregraphics
+github.com/progrium/darwinkit/macos/coreimage
 github.com/progrium/darwinkit/macos/coremedia
+github.com/progrium/darwinkit/macos/coreml
+github.com/progrium/darwinkit/macos/corevideo
 github.com/progrium/darwinkit/macos/foundation
+github.com/progrium/darwinkit/macos/imageio
 github.com/progrium/darwinkit/macos/iosurface
+github.com/progrium/darwinkit/macos/metal
+github.com/progrium/darwinkit/macos/quartzcore
+github.com/progrium/darwinkit/macos/uti
 github.com/progrium/darwinkit/objc
 github.com/progrium/darwinkit/objc/ffi
 # github.com/rs/zerolog v1.33.0
