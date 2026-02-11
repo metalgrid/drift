@@ -307,7 +307,7 @@ Wave 6 (After Wave 5):
 
 ---
 
-- [ ] 2. Config System
+- [x] 2. Config System
 
   **What to do**:
   - Create `internal/config/config.go`:
