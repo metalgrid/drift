@@ -154,3 +154,66 @@ All 17 tests pass (11 existing + 6 new batch tests)
 - Must run `go mod vendor` after adding new dependencies
 - Platform-specific build tags mean not all gateway files compile on all platforms
 - Type assertion provides graceful fallback for gateways that don't implement BatchGateway
+
+## [2026-02-12] Task: 8 - Build Tag Restructuring for TUI/GUI Coexistence
+
+### Implementation Summary
+Restructured Linux gateway to support both TUI (default) and GUI (optional) builds using Go build tags.
+
+### Key Changes
+1. **File Rename**: `dbus_gateway.go` → `gateway_linux_tui.go` (preserves git history via `git mv`)
+2. **TUI Build Tags**: `//go:build linux && !gui` / `// +build linux,!gui`
+   - Ensures TUI gateway only compiles when gui tag is NOT set
+   - Default build (no tags) uses TUI implementation
+3. **GUI Skeleton**: New `gateway_linux_gui.go` with `//go:build linux && gui` / `// +build linux,gui`
+   - Implements both `Gateway` and `BatchGateway` interfaces
+   - All methods have stub implementations that log "not implemented"
+   - Matches `newGateway()` constructor signature for seamless switching
+
+### Build Tag Syntax Pattern
+```go
+//go:build linux && !gui
+// +build linux,!gui
+```
+- Both directives required (modern + legacy format)
+- Comma in `+build` means AND (not OR)
+- Exclamation mark negates condition
+
+### Stub Implementation Pattern
+- `guiGateway` struct with same fields as TUI (mu, peers, reqch)
+- Each method prints "GUI gateway: [method]() not implemented"
+- Returns sensible defaults (nil errors, "DECLINE" for Ask/AskBatch)
+- Compiles cleanly without external dependencies
+
+### Asset Structure
+- Created `internal/platform/assets/` directory
+- Placeholder SVG icon: `drift-icon.svg` (simple gradient circle with arrow)
+- Valid XML structure for future integration with gotk4
+
+### Build Verification
+- `go build ./cmd/drift` → exit 0 (TUI, default)
+- `go build -tags gui ./cmd/drift` → exit 0 (GUI skeleton)
+- Both paths compile without errors
+- Pre-existing IPv6 vet warnings unrelated to this change
+
+### Key Insight: Build Tag Ordering
+When multiple gateway files exist for same platform:
+- TUI: `linux && !gui` (matches when gui tag absent)
+- GUI: `linux && gui` (matches when gui tag present)
+- Exactly one implementation compiles per build
+- No runtime selection needed - compile-time choice
+
+### Files Created/Modified
+1. `internal/platform/gateway_linux_tui.go` (renamed from dbus_gateway.go)
+   - Only change: build tags (line 1-2)
+   - All functionality preserved
+2. `internal/platform/gateway_linux_gui.go` (new)
+   - 50 lines: struct, 6 method stubs, constructor
+3. `internal/platform/assets/drift-icon.svg` (new)
+   - Simple SVG with gradient and arrow shape
+
+### Next Steps (Not in This Task)
+- Import gotk4 in GUI implementation
+- Implement actual GTK window and event loop
+- Add icon resource embedding
+- Platform-specific build instructions for GUI variant
