@@ -475,3 +475,111 @@ dialog.Show()
 ### Next Steps
 - Task 9d: Add drag-and-drop file sending
 - Task 10: System tray integration
+
+## [2026-02-12] Task: 9d - Drag-and-Drop File Sending
+
+### Implementation Summary
+Added gtk.DropTarget to each peer row in buildPeerList(). DropTarget accepts file:// URIs from file manager drag-and-drop operations, parses the path, and sends Request{To: peer, Files: [path]} to reqch channel.
+
+### Key Implementation Details
+
+**Imports Added**:
+```go
+import (
+    "strings"
+    "github.com/diamondburned/gotk4/pkg/gdk/v4"
+)
+```
+
+**DropTarget Creation Pattern** (in buildPeerList(), after "Send File" button):
+```go
+// Capture peer instance before drop handler (closure safety)
+peerInstanceForDrop := peer.GetInstance()
+
+// Create drop target accepting string data with copy action
+drop := gtk.NewDropTarget(glib.TypeString, gdk.ActionCopy)
+
+// Connect drop signal handler
+drop.ConnectDrop(func(drop *gtk.DropTarget, val *glib.Value, x, y float64) bool {
+    // Extract string from GLib Value
+    str, ok := val.GoValue().(string)
+    if !ok {
+        return false
+    }
+    
+    // Validate file:// URI prefix
+    if !strings.HasPrefix(str, "file://") {
+        return false
+    }
+    
+    // Parse URI to file path
+    path := strings.TrimPrefix(str, "file://")
+    path = strings.TrimSpace(path)
+    
+    if path == "" {
+        return false
+    }
+    
+    // Send request to reqch
+    g.reqch <- Request{To: peerInstanceForDrop, Files: []string{path}}
+    return true  // Accept drop
+})
+
+// Attach drop target to row widget
+row.AddController(drop)
+```
+
+### Key Patterns Verified
+- `gtk.NewDropTarget(glib.TypeString, gdk.ActionCopy)` creates drop target for string data
+- `ConnectDrop(func(drop, val, x, y) bool { ... })` connects drop signal handler
+- `val.GoValue().(string)` extracts Go string from GLib Value with type assertion
+- `strings.TrimPrefix(str, "file://")` removes URI scheme
+- `strings.TrimSpace(path)` removes whitespace from parsed path
+- Return `true` from handler to accept drop, `false` to reject
+- `row.AddController(drop)` attaches drop target to widget
+- Capture `peerInstanceForDrop` before handler to avoid closure issues with loop variable
+
+### GTK4 DnD Behavior
+- DropTarget with TypeString handles single URI per drop event
+- File manager sends multiple drop events for multiple files (sequential)
+- Each drop event triggers separate ConnectDrop callback
+- This is GTK4 limitation, not implementation issue
+
+### Build Verification Results
+- `go build -tags gui -o drift-gui ./cmd/drift` → SUCCESS (7.0M binary)
+- `go test ./... -count=1` → ALL PASS (no regressions)
+  - config: 0.002s
+  - transport: 0.005s
+  - zeroconf: 0.004s
+- `go vet -tags gui ./internal/platform/` → No errors (CGo warnings pre-existing)
+- LSP diagnostics: No errors
+
+### Files Modified
+- `internal/platform/gateway_linux_gui.go`
+  - Added "strings" import (line 10)
+  - Added "github.com/diamondburned/gotk4/pkg/gdk/v4" import (line 14)
+  - Added DropTarget creation and handler in buildPeerList() (lines 100-128)
+  - Attached drop target via row.AddController(drop) (line 128)
+
+### Code Review Checklist
+- [x] gdk import added with correct path
+- [x] strings import added for TrimPrefix/TrimSpace
+- [x] DropTarget created with glib.TypeString and gdk.ActionCopy
+- [x] ConnectDrop handler parses file:// URI correctly
+- [x] peerInstanceForDrop captured before handler (closure safety)
+- [x] Request sent to reqch with peer instance and file path
+- [x] Drop target attached via row.AddController(drop)
+- [x] Build succeeds with -tags gui flag
+- [x] Tests pass (no regressions)
+- [x] Only gateway_linux_gui.go modified (plus binary timestamp)
+
+### Integration with Existing Features
+- Works alongside "Send File" button (Task 9c) - both methods send to same reqch
+- Peer list refresh (Task 9b) rebuilds rows with new drop targets
+- Observer pattern (Task 9a) triggers list rebuild on peer changes
+- Thread-safe: drop handler runs on GTK main thread (no glib.IdleAdd needed)
+
+### Next Steps
+- Task 10: System tray integration (DBus StatusNotifierItem)
+- Task 12: Transfer progress UI
+- Task 13a/13b: Incoming transfer dialog

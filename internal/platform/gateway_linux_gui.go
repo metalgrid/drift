@@ -7,9 +7,11 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	gio "github.com/diamondburned/gotk4/pkg/gio/v2"
 	gtk "github.com/diamondburned/gotk4/pkg/gtk/v4"
 
@@ -94,6 +96,36 @@ func (g *guiGateway) buildPeerList() *gtk.ListBox {
 			})
 		})
 		row.Append(sendBtn)
+
+		// Drag-and-drop target
+		peerInstanceForDrop := peer.GetInstance() // Capture before drop handler
+		drop := gtk.NewDropTarget(glib.TypeString, gdk.ActionCopy)
+		drop.ConnectDrop(func(drop *gtk.DropTarget, val *glib.Value, x, y float64) bool {
+			// Extract file URI from dropped value
+			str, ok := val.GoValue().(string)
+			if !ok {
+				return false
+			}
+
+			// Parse file:// URI
+			if !strings.HasPrefix(str, "file://") {
+				return false
+			}
+
+			// Extract path from URI
+			path := strings.TrimPrefix(str, "file://")
+			path = strings.TrimSpace(path)
+
+			if path == "" {
+				return false
+			}
+
+			// Send request
+			g.reqch <- Request{To: peerInstanceForDrop, Files: []string{path}}
+			return true
+		})
+
+		row.AddController(drop)
 
 		listBox.Append(row)
 	}
