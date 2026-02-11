@@ -332,3 +332,70 @@ import (
 - Implement drag-and-drop for file transfers
 - Add file picker dialog
 - Implement system tray integration
+
+## [2026-02-12] Task: 9b - Peer List UI with Static Rendering + OnChange Refresh
+
+### Implementation Summary
+Added peer list UI widget with automatic refresh on peer changes. Implemented buildPeerList() method that creates a scrollable list of peers with name, OS badge, and IP address.
+
+### Key Implementation Details
+
+**buildPeerList() Method**:
+- Creates gtk.ListBox with SelectionNone mode (no row selection)
+- Iterates over g.peers.All() snapshot
+- For each peer, creates horizontal gtk.Box with:
+  - Peer name label (bold via SetMarkup("<b>text</b>"))
+  - OS badge from peer.GetRecord("os")
+  - First IP address from peer.Addresses[0].String()
+- Sets margins (5px top/bottom, 10px start/end) for spacing
+- Uses SetHExpand(true) + SetXAlign(0) for left-aligned name label
+
+**Activate Callback Updates**:
+- Wraps peer list in gtk.ScrolledWindow with:
+  - SetPolicy(PolicyNever, PolicyAutomatic) — vertical scroll only
+  - SetVExpand(true) — fills available space
+- Appends scrolled window to main vertical box
+- Registers peers.OnChange() callback with glib.IdleAdd for thread-safe refresh
+
+**Observer Pattern Integration**:
+- peers.OnChange(func() { ... }) registers callback
+- Callback wrapped in glib.IdleAdd(func() { ... }) for GTK main thread execution
+- On peer change: rebuilds entire list via buildPeerList() and updates scrolled window child
+- Thread-safe: observer callback runs on GTK main thread via IdleAdd
+
+### Key Patterns Verified
+- gtk.NewScrolledWindow() with SetPolicy(never, automatic) for vertical scrolling
+- SetMarkup("<b>text</b>") for bold text rendering
+- SetHExpand(true) + SetXAlign(0) for left-aligned labels
+- glib.IdleAdd for cross-goroutine UI updates from observer callbacks
+- SetSelectionMode(SelectionNone) to disable row selection
+- SetMarginTop/Bottom/Start/End for consistent spacing
+
+### Build Verification Results
+- `go build -tags gui -o drift-gui ./cmd/drift` → SUCCESS (7.0M binary created)
+- `go test ./... -count=1` → ALL PASS (no regressions)
+  - config: 0.005s
+  - transport: 0.004s
+  - zeroconf: 0.003s
+- `go vet -tags gui ./internal/platform/` → No errors (CGo warnings are pre-existing)
+
+### Files Modified
+- `internal/platform/gateway_linux_gui.go`
+  - Added buildPeerList() method (lines 27-60)
+  - Updated ConnectActivate callback (lines 67-101)
+  - Registered peers.OnChange() with glib.IdleAdd (lines 93-100)
+
+### Code Review Checklist
+- [x] buildPeerList() exists and returns gtk.ListBox
+- [x] Each peer row: horizontal box with name (bold), OS badge, IP
+- [x] ScrolledWindow wraps peer list with vertical scroll policy
+- [x] OnChange callback registered with glib.IdleAdd
+- [x] Thread-safe UI updates via IdleAdd pattern
+- [x] Build succeeds with -tags gui flag
+- [x] Tests pass (no regressions)
+- [x] Only gateway_linux_gui.go modified
+
+### Next Steps
+- Task 9c: Add "Send File" button per peer row
+- Task 9d: Add drag-and-drop file sending
+- Task 10: System tray integration

@@ -24,6 +24,41 @@ type guiGateway struct {
 	window *gtk.ApplicationWindow
 }
 
+func (g *guiGateway) buildPeerList() *gtk.ListBox {
+	listBox := gtk.NewListBox()
+	listBox.SetSelectionMode(gtk.SelectionNone)
+
+	peers := g.peers.All()
+	for _, peer := range peers {
+		row := gtk.NewBox(gtk.OrientationHorizontal, 10)
+		row.SetMarginTop(5)
+		row.SetMarginBottom(5)
+		row.SetMarginStart(10)
+		row.SetMarginEnd(10)
+
+		// Peer name (bold)
+		nameLabel := gtk.NewLabel(peer.GetInstance())
+		nameLabel.SetMarkup("<b>" + peer.GetInstance() + "</b>")
+		nameLabel.SetHExpand(true)
+		nameLabel.SetXAlign(0)
+		row.Append(nameLabel)
+
+		// OS badge
+		osLabel := gtk.NewLabel(peer.GetRecord("os"))
+		row.Append(osLabel)
+
+		// IP address (first address)
+		if len(peer.Addresses) > 0 {
+			ipLabel := gtk.NewLabel(peer.Addresses[0].String())
+			row.Append(ipLabel)
+		}
+
+		listBox.Append(row)
+	}
+
+	return listBox
+}
+
 func (g *guiGateway) Run(ctx context.Context) error {
 	runtime.LockOSThread()
 
@@ -40,11 +75,29 @@ func (g *guiGateway) Run(ctx context.Context) error {
 		g.window.SetTitlebar(header)
 		g.window.SetTitle("Drift")
 
-		// Empty box as placeholder
-		box := gtk.NewBox(gtk.OrientationVertical, 0)
-		g.window.SetChild(box)
+		// Create scrolled window for peer list
+		scrolled := gtk.NewScrolledWindow()
+		scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+		scrolled.SetVExpand(true)
 
+		peerList := g.buildPeerList()
+		scrolled.SetChild(peerList)
+
+		// Main container
+		box := gtk.NewBox(gtk.OrientationVertical, 0)
+		box.Append(scrolled)
+
+		g.window.SetChild(box)
 		g.window.Show()
+
+		// Register peer change observer
+		g.peers.OnChange(func() {
+			glib.IdleAdd(func() {
+				// Rebuild peer list on change
+				newList := g.buildPeerList()
+				scrolled.SetChild(newList)
+			})
+		})
 	})
 
 	// Watch for context cancellation
