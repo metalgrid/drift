@@ -175,3 +175,105 @@ func TestFormatSize(t *testing.T) {
 		}
 	}
 }
+
+// TestBatchOfferMarshal tests that BatchOffer.MarshalMessage() produces correct wire format
+func TestBatchOfferMarshal(t *testing.T) {
+	batch := BatchOffer{
+		Message: Message{"BATCH_OFFER"},
+		Files: []FileEntry{
+			{Filename: "file1.txt", Mimetype: "application/octet-stream", Size: 1024},
+			{Filename: "file2.pdf", Mimetype: "application/octet-stream", Size: 2048},
+		},
+	}
+	expected := []byte("BATCH_OFFER|2|file1.txt|application/octet-stream|1024|file2.pdf|application/octet-stream|2048\n")
+	result := batch.MarshalMessage()
+	if !bytes.Equal(result, expected) {
+		t.Errorf("MarshalMessage() = %q, want %q", result, expected)
+	}
+}
+
+// TestBatchOfferUnmarshalRoundTrip tests marshal → unmarshal → type assert → compare
+func TestBatchOfferUnmarshalRoundTrip(t *testing.T) {
+	original := BatchOffer{
+		Message: Message{"BATCH_OFFER"},
+		Files: []FileEntry{
+			{Filename: "doc1.txt", Mimetype: "application/octet-stream", Size: 512},
+			{Filename: "doc2.pdf", Mimetype: "application/octet-stream", Size: 1024},
+			{Filename: "doc3.jpg", Mimetype: "application/octet-stream", Size: 2048},
+		},
+	}
+	marshaled := original.MarshalMessage()
+	unmarshaled := UnmarshalMessage(string(marshaled))
+
+	batch, ok := unmarshaled.(BatchOffer)
+	if !ok {
+		t.Fatalf("UnmarshalMessage() returned %T, want BatchOffer", unmarshaled)
+	}
+
+	if batch.Type != original.Type {
+		t.Errorf("Type = %q, want %q", batch.Type, original.Type)
+	}
+	if len(batch.Files) != len(original.Files) {
+		t.Fatalf("len(Files) = %d, want %d", len(batch.Files), len(original.Files))
+	}
+	for i := range batch.Files {
+		if batch.Files[i].Filename != original.Files[i].Filename {
+			t.Errorf("Files[%d].Filename = %q, want %q", i, batch.Files[i].Filename, original.Files[i].Filename)
+		}
+		if batch.Files[i].Mimetype != original.Files[i].Mimetype {
+			t.Errorf("Files[%d].Mimetype = %q, want %q", i, batch.Files[i].Mimetype, original.Files[i].Mimetype)
+		}
+		if batch.Files[i].Size != original.Files[i].Size {
+			t.Errorf("Files[%d].Size = %d, want %d", i, batch.Files[i].Size, original.Files[i].Size)
+		}
+	}
+}
+
+// TestBatchOfferSingleFile tests BatchOffer with a single file
+func TestBatchOfferSingleFile(t *testing.T) {
+	batch := BatchOffer{
+		Message: Message{"BATCH_OFFER"},
+		Files: []FileEntry{
+			{Filename: "single.txt", Mimetype: "application/octet-stream", Size: 100},
+		},
+	}
+	expected := []byte("BATCH_OFFER|1|single.txt|application/octet-stream|100\n")
+	result := batch.MarshalMessage()
+	if !bytes.Equal(result, expected) {
+		t.Errorf("MarshalMessage() = %q, want %q", result, expected)
+	}
+}
+
+// TestBatchOfferInvalidCount tests that BATCH_OFFER with mismatched count returns error
+func TestBatchOfferInvalidCount(t *testing.T) {
+	// Count says 3 but only 2 file entries provided
+	result := UnmarshalMessage("BATCH_OFFER|3|file1.txt|application/octet-stream|1024|file2.txt|application/octet-stream|2048\n")
+	_, ok := result.(error)
+	if !ok {
+		t.Errorf("UnmarshalMessage() with invalid count returned %T, want error", result)
+	}
+}
+
+// TestBatchOfferEmptyBatch tests that BATCH_OFFER with count=0 returns error
+func TestBatchOfferEmptyBatch(t *testing.T) {
+	result := UnmarshalMessage("BATCH_OFFER|0\n")
+	_, ok := result.(error)
+	if !ok {
+		t.Errorf("UnmarshalMessage() with empty batch returned %T, want error", result)
+	}
+}
+
+// TestExistingOfferStillWorks tests that regular OFFER messages still work after adding BATCH_OFFER
+func TestExistingOfferStillWorks(t *testing.T) {
+	result := UnmarshalMessage("OFFER|test.txt|application/octet-stream|1024\n")
+	offer, ok := result.(Offer)
+	if !ok {
+		t.Fatalf("UnmarshalMessage() returned %T, want Offer", result)
+	}
+	if offer.Filename != "test.txt" {
+		t.Errorf("Filename = %q, want %q", offer.Filename, "test.txt")
+	}
+	if offer.Size != 1024 {
+		t.Errorf("Size = %d, want %d", offer.Size, 1024)
+	}
+}

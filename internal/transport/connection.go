@@ -35,6 +35,33 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 		case error:
 			gw.Notify(fmt.Sprintf("Error: %s", m))
 			return
+		case BatchOffer:
+			var totalSize int64
+			for _, file := range m.Files {
+				totalSize += file.Size
+			}
+			answer := gw.Ask(fmt.Sprintf("Incoming batch: %d files (%s)", len(m.Files), formatSize(totalSize)))
+			if answer == "ACCEPT" {
+				_, err = conn.Write(Accept().MarshalMessage())
+				if err != nil {
+					return
+				}
+			}
+
+			if answer == "DECLINE" || answer == "" {
+				_, _ = conn.Write(Decline().MarshalMessage())
+				return
+			}
+
+			fp := filepath.Join(xdg.UserDirs.Download, "Drift")
+			for _, file := range m.Files {
+				err = storeFile(fp, file.Filename, file.Size, conn, nil)
+				if err != nil {
+					gw.Notify(fmt.Sprintf("Failed storing file %s: %s", file.Filename, err))
+					return
+				}
+			}
+			gw.Notify(fmt.Sprintf("Batch received: %d files", len(m.Files)))
 		case Offer:
 			answer := gw.Ask(fmt.Sprintf("Incoming file: %s (%s)", m.Filename, formatSize(m.Size)))
 			if answer == "ACCEPT" {
@@ -127,5 +154,19 @@ func SendFile(filename string, conn net.Conn) {
 	_, err = conn.Write(offer.MarshalMessage())
 	if err != nil {
 		fmt.Println("failed sending file:", err)
+	}
+}
+
+func SendBatch(filenames []string, conn net.Conn) {
+	fmt.Println("Sending batch of", len(filenames), "files")
+	batch, err := MakeBatchOffer(filenames)
+	if err != nil {
+		fmt.Println("failed creating batch offer:", err)
+		return
+	}
+
+	_, err = conn.Write(batch.MarshalMessage())
+	if err != nil {
+		fmt.Println("failed sending batch:", err)
 	}
 }
