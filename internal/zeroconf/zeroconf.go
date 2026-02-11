@@ -56,14 +56,21 @@ func (pi *PeerInfo) GetRecord(key string) string {
 }
 
 type Peers struct {
-	mu    *sync.RWMutex
-	peers map[string]*PeerInfo
+	mu        *sync.RWMutex
+	peers     map[string]*PeerInfo
+	observers []func()
 }
 
 func (p *Peers) All() []*PeerInfo {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return slices.Collect(maps.Values(p.peers))
+}
+
+func (p *Peers) OnChange(fn func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.observers = append(p.observers, fn)
 }
 
 func (p *Peers) GetByService(service string) *PeerInfo {
@@ -107,14 +114,26 @@ func (p *Peers) GetByAddr(addr net.Addr) *PeerInfo {
 
 func (p *Peers) add(pi *PeerInfo) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	p.peers[pi.String()] = pi
+	observers := p.observers
+	p.mu.Unlock()
+
+	// Call observers without holding lock
+	for _, observer := range observers {
+		observer()
+	}
 }
 
 func (p *Peers) remove(key string) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	delete(p.peers, key)
+	observers := p.observers
+	p.mu.Unlock()
+
+	// Call observers without holding lock
+	for _, observer := range observers {
+		observer()
+	}
 }
 
 type ZeroconfService struct {
@@ -136,6 +155,7 @@ func (svc *ZeroconfService) Start(ctx context.Context) error {
 		"v=0.1",
 		"pk=" + svc.pubkey,
 		"os=" + runtime.GOOS,
+		fmt.Sprintf("port=%d", svc.servicePort),
 	}
 
 	svc.client.Publish(service)
@@ -195,6 +215,9 @@ func NewZeroconfService(port int, pubkey string, options *ZeroconfOptions) (*Zer
 	}
 
 	client := zc.New()
+	if preferIPv4() {
+		client.Network("udp4")
+	}
 
 	svc := &ZeroconfService{
 		servicePort: port,
@@ -208,4 +231,31 @@ func NewZeroconfService(port int, pubkey string, options *ZeroconfOptions) (*Zer
 	}
 
 	return svc, nil
+}
+
+func preferIPv4() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	if ipv6DisabledBySysctl() {
+		return true
+	}
+	return !supportsIPv6()
+}
+
+func ipv6DisabledBySysctl() bool {
+	data, err := os.ReadFile("/proc/sys/net/ipv6/conf/all/disable_ipv6")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == "1"
+}
+
+func supportsIPv6() bool {
+	conn, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6loopback, Port: 0})
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
