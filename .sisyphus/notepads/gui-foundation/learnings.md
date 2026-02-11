@@ -241,3 +241,94 @@ When multiple gateway files exist for same platform:
 - Method signature: `Notify(app_name, replaces_id, app_icon, summary, body, actions, hints, expire_timeout) -> uint32`
 - Return value (notification ID) is ignored in this implementation
 - Hints map can be empty for basic notifications (no urgency, sound, etc.)
+
+## [2026-02-12] Task: 9a - GTK4 Dependency + App Bootstrap
+
+### Implementation Summary
+Added gotk4 dependency and implemented GTK4 application bootstrap with window creation and graceful shutdown.
+
+### Key Implementation Details
+
+**Imports Added**:
+```go
+import (
+    "context"
+    "fmt"
+    "runtime"
+    "sync"
+    
+    "github.com/diamondburned/gotk4/pkg/core/glib"
+    gio "github.com/diamondburned/gotk4/pkg/gio/v2"
+    gtk "github.com/diamondburned/gotk4/pkg/gtk/v4"
+    
+    "github.com/metalgrid/drift/internal/zeroconf"
+)
+```
+
+**Struct Fields Added**:
+- `app *gtk.Application` — GTK application instance
+- `window *gtk.ApplicationWindow` — Main application window
+
+**Run() Implementation Pattern**:
+1. `runtime.LockOSThread()` — Required by GTK4 to ensure main thread execution
+2. `gtk.NewApplication("com.github.metalgrid.drift", gio.ApplicationFlagsNone)` — Create app with reverse-domain ID
+3. `app.ConnectActivate(func() { ... })` — Register activation callback for window creation
+4. Window creation: 400x500 size, HeaderBar with title "Drift", empty vertical Box placeholder
+5. Context watcher goroutine: `<-ctx.Done()` → `glib.IdleAdd(func() { app.Quit() })`
+6. `app.Run(nil)` — Blocks until app quits
+
+**Shutdown() Implementation**:
+- Uses `glib.IdleAdd()` to schedule quit on GTK main thread
+- Nil-safe check: `if g.app != nil { g.app.Quit() }`
+- Closes request channel after quit scheduled
+
+### Critical Patterns
+
+**Thread Safety with glib.IdleAdd**:
+- GTK4 requires all UI operations on main thread
+- Cross-goroutine updates use `glib.IdleAdd(func() { /* UI code */ })`
+- Context cancellation watcher runs in separate goroutine, schedules Quit via IdleAdd
+- Pattern prevents deadlocks and race conditions
+
+**Build Tag Coexistence**:
+- TUI: `//go:build linux && !gui` (default)
+- GUI: `//go:build linux && gui` (with -tags gui flag)
+- Exactly one implementation compiles per build
+
+### Build Verification Results
+- `go mod tidy` → SUCCESS
+- `go mod vendor` → SUCCESS (synced gotk4 and dependencies)
+- `go build -tags gui -o drift-gui ./cmd/drift` → SUCCESS (7.0M binary)
+- Binary is valid ELF 64-bit executable with debug info
+- `go test ./... -count=1` → ALL PASS (no regressions in non-GUI tests)
+
+### Files Modified
+1. `internal/platform/gateway_linux_gui.go`
+   - Added gotk4 imports (gtk/v4, gio/v2, core/glib)
+   - Added app and window fields to guiGateway struct
+   - Implemented Run() with full GTK4 bootstrap
+   - Implemented Shutdown() with glib.IdleAdd
+2. `go.mod` / `go.sum` — Updated by go mod tidy
+3. `vendor/modules.txt` — Updated by go mod vendor
+
+### Key Learnings
+1. **gotk4 Import Paths**: Must use exact paths (gtk/v4, gio/v2, core/glib)
+2. **Thread Locking**: `runtime.LockOSThread()` is non-negotiable for GTK4
+3. **Application ID**: Reverse-domain format (com.github.metalgrid.drift) is convention
+4. **ConnectActivate**: Window creation happens in activate callback, not main()
+5. **Context Cancellation**: Watcher goroutine + glib.IdleAdd pattern for graceful shutdown
+6. **Build Compilation**: CGo compilation takes time (warnings about free() are harmless)
+
+### Verification Checklist
+- [x] go mod tidy runs successfully
+- [x] go build -tags gui succeeds with valid ELF binary
+- [x] Binary is 7.0M (reasonable size for GTK4 app)
+- [x] go test ./... passes (no regressions)
+- [x] LSP diagnostics clean (no errors)
+- [x] Only expected files modified (gateway_linux_gui.go, go.mod, go.sum, vendor/)
+
+### Next Steps (Task 9b onwards)
+- Add peer list UI widget
+- Implement drag-and-drop for file transfers
+- Add file picker dialog
+- Implement system tray integration

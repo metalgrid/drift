@@ -6,25 +6,65 @@ package platform
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
+
+	"github.com/diamondburned/gotk4/pkg/core/glib"
+	gio "github.com/diamondburned/gotk4/pkg/gio/v2"
+	gtk "github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/metalgrid/drift/internal/zeroconf"
 )
 
 type guiGateway struct {
-	mu    *sync.Mutex
-	peers *zeroconf.Peers
-	reqch chan<- Request
+	mu     *sync.Mutex
+	peers  *zeroconf.Peers
+	reqch  chan<- Request
+	app    *gtk.Application
+	window *gtk.ApplicationWindow
 }
 
 func (g *guiGateway) Run(ctx context.Context) error {
-	fmt.Println("GUI gateway: Run() not implemented")
-	<-ctx.Done()
+	runtime.LockOSThread()
+
+	g.app = gtk.NewApplication("com.github.metalgrid.drift", gio.ApplicationFlagsNone)
+
+	g.app.ConnectActivate(func() {
+		// Create window 400x500
+		g.window = gtk.NewApplicationWindow(g.app)
+		g.window.SetDefaultSize(400, 500)
+
+		// Header bar with title
+		header := gtk.NewHeaderBar()
+		header.SetShowTitleButtons(true)
+		g.window.SetTitlebar(header)
+		g.window.SetTitle("Drift")
+
+		// Empty box as placeholder
+		box := gtk.NewBox(gtk.OrientationVertical, 0)
+		g.window.SetChild(box)
+
+		g.window.Show()
+	})
+
+	// Watch for context cancellation
+	go func() {
+		<-ctx.Done()
+		glib.IdleAdd(func() {
+			g.app.Quit()
+		})
+	}()
+
+	g.app.Run(nil) // Blocks here
 	return nil
 }
 
 func (g *guiGateway) Shutdown() {
-	fmt.Println("GUI gateway: Shutdown() not implemented")
+	glib.IdleAdd(func() {
+		if g.app != nil {
+			g.app.Quit()
+		}
+	})
 	close(g.reqch)
 }
 

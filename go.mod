@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/adrg/xdg v0.5.3
 	github.com/betamos/zeroconf v0.1.5
+	github.com/diamondburned/gotk4/pkg v0.3.1
 	github.com/godbus/dbus/v5 v5.0.4
 	github.com/progrium/darwinkit v0.5.0
 	github.com/rs/zerolog v1.33.0
@@ -14,11 +15,13 @@ require (
 )
 
 require (
+	github.com/KarpelesLab/weak v0.1.1 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20231019175336-f6e33aa7cc34 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/tailscale/win v0.0.0-20240926211701-28f7e73c7afb // indirect
+	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53 // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.31.0 // indirect
