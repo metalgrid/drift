@@ -40,7 +40,8 @@ func (g *guiGateway) Ask(question string) string {
 }
 
 func (g *guiGateway) Notify(message string) {
-	fmt.Println("GUI gateway: Notify() not implemented")
+	iconPath := "internal/platform/assets/drift-icon.svg"
+	_ = SendNotification("Drift", message, iconPath)
 }
 
 func (g *guiGateway) AskBatch(peerName string, files []FileInfo) string {

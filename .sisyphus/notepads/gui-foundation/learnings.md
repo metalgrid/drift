@@ -217,3 +217,27 @@ When multiple gateway files exist for same platform:
 - Implement actual GTK window and event loop
 - Add icon resource embedding
 - Platform-specific build instructions for GUI variant
+
+## [2026-02-12] Task: 11 - Linux Desktop Notifications via DBus
+
+### Implementation Pattern
+- **File**: `internal/platform/notify_linux.go` with build tags `//go:build linux && gui`
+- **DBus Method**: `org.freedesktop.Notifications.Notify` via `github.com/godbus/dbus/v5`
+- **Parameters**: app_name="Drift", replaces_id=0, app_icon=path, summary, body, actions=[], hints={}, expire_timeout=5000ms
+
+### Key Learnings
+1. **DBus Connection**: Use `dbus.SessionBus()` for user-level notifications (not system bus)
+2. **Object Path**: Notifications service uses `/org/freedesktop/Notifications` path
+3. **Error Handling**: Gracefully handle DBus connection errors by returning error from SendNotification
+4. **Icon Path**: Can pass relative or absolute path to SVG icon file
+5. **Non-blocking**: Notify() method doesn't wait for response, just sends and ignores errors (pattern: `_ = SendNotification(...)`)
+
+### Integration
+- `gateway_linux_gui.go` Notify() method calls SendNotification with icon path
+- Icon path: `internal/platform/assets/drift-icon.svg` (created in Task 8)
+- Build succeeds with `-tags gui` flag
+
+### DBus Spec Reference
+- Method signature: `Notify(app_name, replaces_id, app_icon, summary, body, actions, hints, expire_timeout) -> uint32`
+- Return value (notification ID) is ignored in this implementation
+- Hints map can be empty for basic notifications (no urgency, sound, etc.)
