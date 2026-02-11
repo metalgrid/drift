@@ -53,6 +53,48 @@ func (g *guiGateway) buildPeerList() *gtk.ListBox {
 			row.Append(ipLabel)
 		}
 
+		// Send File button
+		sendBtn := gtk.NewButton()
+		sendBtn.SetLabel("Send File")
+		peerInstance := peer.GetInstance() // Capture peer instance in closure
+		sendBtn.ConnectClicked(func() {
+			// Create file chooser dialog
+			dialog := gtk.NewFileChooserNative(
+				"Select Files to Send",
+				&g.window.Window,
+				gtk.FileChooserActionOpen,
+				"Send",
+				"Cancel",
+			)
+			dialog.SetSelectMultiple(true)
+
+			dialog.Show()
+
+			dialog.ConnectResponse(func(responseID int) {
+				if responseID == int(gtk.ResponseAccept) {
+					// Get selected files
+					files := dialog.GetFiles()
+					var filePaths []string
+
+					for i := uint(0); i < files.NItems(); i++ {
+						item := files.Item(i)
+						if fileObj, ok := item.(*gio.File); ok {
+							path := fileObj.Path()
+							if path != "" {
+								filePaths = append(filePaths, path)
+							}
+						}
+					}
+
+					// Send request
+					if len(filePaths) > 0 {
+						g.reqch <- Request{To: peerInstance, Files: filePaths}
+					}
+				}
+			})
+		})
+		row.Append(sendBtn)
+
 		listBox.Append(row)
 	}
 
@@ -122,7 +164,6 @@ func (g *guiGateway) Shutdown() {
 }
 
 func (g *guiGateway) NewRequest(to, file string) error {
-	fmt.Println("GUI gateway: NewRequest() not implemented")
 	g.reqch <- Request{To: to, Files: []string{file}}
 	return nil
 }

@@ -399,3 +399,79 @@ Added peer list UI widget with automatic refresh on peer changes. Implemented bu
 - Task 9c: Add "Send File" button per peer row
 - Task 9d: Add drag-and-drop file sending
 - Task 10: System tray integration
+
+## [2026-02-12] Task: 9c - File Picker + Send Button Per Peer
+
+### Implementation Summary
+Added "Send File" button to each peer row in buildPeerList(). Button click opens native file chooser dialog with multi-select enabled. Selected files are extracted and sent to reqch channel as Request{To: peer, Files: filePaths}.
+
+### Key Implementation Details
+
+**Button Addition to Peer Row**:
+- Created gtk.NewButton() with label "Send File"
+- Captured peerInstance via closure before ConnectClicked handler
+- Appended button to row after IP label
+
+**File Chooser Dialog Pattern**:
+```go
+dialog := gtk.NewFileChooserNative(
+    "Select Files to Send",
+    &g.window.Window,
+    gtk.FileChooserActionOpen,
+    "Send",
+    "Cancel",
+)
+dialog.SetSelectMultiple(true)
+dialog.Show()
+```
+
+**Response Handler Pattern**:
+- ConnectResponse callback checks responseID == int(gtk.ResponseAccept)
+- dialog.GetFiles() returns gio.ListModel
+- Iterate with NItems() and Item(i) → cast to *gio.File
+- (*gio.File).Path() extracts file system path
+- Send Request{To: peerInstance, Files: filePaths} directly to g.reqch
+
+**NewRequest() Update**:
+- Removed fmt.Println stub line
+- Kept fmt import (still used by Ask() and AskBatch() stubs)
+- Direct channel send: g.reqch <- Request{To: to, Files: []string{file}}
+
+### Key Patterns Verified
+- gtk.NewFileChooserNative(title, parent, action, acceptLabel, cancelLabel)
+- SetSelectMultiple(true) for multi-file selection
+- ConnectResponse(func(responseID int) { ... }) for dialog response handling
+- dialog.GetFiles() → gio.ListModel → NItems() / Item(i) → cast to *gio.File
+- (*gio.File).Path() extracts file system path string
+- Closure capture of peerInstance before button click handler
+- Direct channel send (no async spawning needed)
+
+### Build Verification Results
+- `go build -tags gui -o drift-gui ./cmd/drift` → SUCCESS (7.0M binary)
+- `go test ./... -count=1` → ALL PASS (no regressions)
+  - config: 0.003s
+  - transport: 0.003s
+  - zeroconf: 0.003s
+- `go vet -tags gui ./internal/platform/` → No errors (CGo warnings pre-existing)
+- LSP diagnostics: No errors
+
+### Files Modified
+- `internal/platform/gateway_linux_gui.go`
+  - Added "Send File" button to buildPeerList() (lines 55-95)
+  - Updated NewRequest() to remove fmt.Println stub (lines 165-168)
+  - Kept fmt import for Ask() and AskBatch() stubs
+
+### Code Review Checklist
+- [x] "Send File" button exists in each peer row
+- [x] Button appended after IP label, before listBox.Append(row)
+- [x] gtk.NewFileChooserNative with SelectMultiple(true)
+- [x] ConnectResponse callback extracts file paths correctly
+- [x] Request sent to reqch with To and Files fields
+- [x] NewRequest() no longer has fmt.Println stub
+- [x] Build succeeds with -tags gui flag
+- [x] Tests pass (no regressions)
+- [x] Only gateway_linux_gui.go modified (plus binary timestamp)
+
+### Next Steps
+- Task 9d: Add drag-and-drop file sending
+- Task 10: System tray integration
