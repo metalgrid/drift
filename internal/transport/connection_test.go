@@ -13,7 +13,7 @@ func TestStoreFileSuccess(t *testing.T) {
 	testData := []byte("test file content")
 	reader := bytes.NewReader(testData)
 
-	err := storeFile(tmpDir, "test.txt", int64(len(testData)), reader)
+	err := storeFile(tmpDir, "test.txt", int64(len(testData)), reader, nil)
 	if err != nil {
 		t.Fatalf("storeFile() failed: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestStoreFileZeroBytes(t *testing.T) {
 	tmpDir := t.TempDir()
 	reader := bytes.NewReader([]byte{})
 
-	err := storeFile(tmpDir, "empty.txt", 0, reader)
+	err := storeFile(tmpDir, "empty.txt", 0, reader, nil)
 	if err != nil {
 		t.Fatalf("storeFile() with zero bytes failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestStoreFileDirCreation(t *testing.T) {
 	testData := []byte("nested file content")
 	reader := bytes.NewReader(testData)
 
-	err := storeFile(subDir, "nested.txt", int64(len(testData)), reader)
+	err := storeFile(subDir, "nested.txt", int64(len(testData)), reader, nil)
 	if err != nil {
 		t.Fatalf("storeFile() with nested directory failed: %v", err)
 	}

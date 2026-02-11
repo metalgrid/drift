@@ -51,7 +51,7 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 			}
 
 			fp := filepath.Join(xdg.UserDirs.Download, "Drift")
-			err = storeFile(fp, m.Filename, m.Size, conn)
+			err = storeFile(fp, m.Filename, m.Size, conn, nil)
 			if err != nil {
 				gw.Notify(fmt.Sprintf("Failed storing file: %s", err))
 				return
@@ -60,7 +60,7 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 		case Answer:
 			if m.Accepted() {
 				file := ctx.Value(FilenameKey).(string)
-				err = sendFile(file, conn)
+				err = sendFile(file, conn, nil)
 				if err != nil {
 					gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
 					return
@@ -71,7 +71,7 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 	}
 }
 
-func storeFile(incoming, file string, size int64, reader io.Reader) error {
+func storeFile(incoming, file string, size int64, reader io.Reader, progress ProgressFunc) error {
 	err := os.MkdirAll(incoming, 0777)
 
 	if err != nil {
@@ -86,7 +86,8 @@ func storeFile(incoming, file string, size int64, reader io.Reader) error {
 	}
 
 	lr := io.LimitReader(reader, size)
-	bytes, err := f.ReadFrom(lr)
+	pr := NewProgressReader(lr, size, progress)
+	bytes, err := f.ReadFrom(pr)
 	_ = bytes
 	_ = f.Close()
 	if err != nil {
@@ -97,14 +98,20 @@ func storeFile(incoming, file string, size int64, reader io.Reader) error {
 	return os.Rename(f.Name(), fp)
 }
 
-func sendFile(file string, writer io.Writer) error {
+func sendFile(file string, writer io.Writer, progress ProgressFunc) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	bytes, err := f.WriteTo(writer)
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	pw := NewProgressWriter(writer, fi.Size(), progress)
+	bytes, err := f.WriteTo(pw)
 	_ = bytes
 	return err
 }
