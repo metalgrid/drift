@@ -393,7 +393,7 @@ Wave 6 (After Wave 5):
 
 ---
 
-- [ ] 3. Bug Fix — Outbound Processor `return` → `continue`
+- [x] 3. Bug Fix — Outbound Processor `return` → `continue`
 
   **What to do**:
   - In `internal/app/run.go`, fix the outbound connection processor goroutine (lines 110-151):

@@ -13,6 +13,10 @@ import (
 	"github.com/metalgrid/drift/internal/platform"
 )
 
+type contextKey string
+
+const FilenameKey contextKey = "filename"
+
 func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
 	defer conn.Close()
@@ -55,7 +59,7 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 			gw.Notify(fmt.Sprintf("File received: %s", m.Filename))
 		case Answer:
 			if m.Accepted() {
-				file := ctx.Value("filename").(string)
+				file := ctx.Value(FilenameKey).(string)
 				err = sendFile(file, conn)
 				if err != nil {
 					gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
