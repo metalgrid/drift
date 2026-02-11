@@ -145,9 +145,14 @@ func Run(ctx context.Context, identity string) error {
 					continue
 				}
 
-				requestCtx := context.WithValue(ctx, transport.FilenameKey, request.File)
-				go transport.HandleConnection(requestCtx, sc, platformGateway)
-				transport.SendFile(request.File, sc)
+				if len(request.Files) > 1 {
+					go transport.HandleConnection(ctx, sc, platformGateway)
+					transport.SendBatch(request.Files, sc)
+				} else if len(request.Files) == 1 {
+					requestCtx := context.WithValue(ctx, transport.FilenameKey, request.Files[0])
+					go transport.HandleConnection(requestCtx, sc, platformGateway)
+					transport.SendFile(request.Files[0], sc)
+				}
 			}
 		}
 	}()

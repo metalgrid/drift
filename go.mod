@@ -3,9 +3,10 @@ module github.com/metalgrid/drift
 go 1.23.3
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/adrg/xdg v0.5.3
 	github.com/betamos/zeroconf v0.1.5
-	github.com/chzyer/readline v1.5.1
+	github.com/godbus/dbus/v5 v5.0.4
 	github.com/progrium/darwinkit v0.5.0
 	github.com/rs/zerolog v1.33.0
 	github.com/tailscale/walk v0.0.0-20241202161857-349077283e47
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20231019175336-f6e33aa7cc34 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

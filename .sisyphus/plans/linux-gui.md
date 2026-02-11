@@ -472,7 +472,7 @@ Wave 6 (After Wave 5):
 
 ---
 
-- [ ] 4. Peer Change Observer
+- [x] 4. Peer Change Observer
 
   **What to do**:
   - Extend `internal/zeroconf/zeroconf.go` `Peers` struct with observer callbacks:
@@ -543,7 +543,7 @@ Wave 6 (After Wave 5):
 
 ---
 
-- [ ] 5. Progress Tracking Wrappers
+- [x] 5. Progress Tracking Wrappers
 
   **What to do**:
   - Create `internal/transport/progress.go`:
@@ -624,7 +624,7 @@ Wave 6 (After Wave 5):
 
 ---
 
-- [ ] 6. Protocol Extension — BATCH_OFFER Message Type
+- [x] 6. Protocol Extension — BATCH_OFFER Message Type
 
   **What to do**:
   - Add `BatchOffer` type to `internal/transport/message.go`:

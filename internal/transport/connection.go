@@ -37,10 +37,22 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 			return
 		case BatchOffer:
 			var totalSize int64
-			for _, file := range m.Files {
+			fileInfos := make([]platform.FileInfo, len(m.Files))
+			for i, file := range m.Files {
 				totalSize += file.Size
+				fileInfos[i] = platform.FileInfo{
+					Filename: file.Filename,
+					Size:     file.Size,
+				}
 			}
-			answer := gw.Ask(fmt.Sprintf("Incoming batch: %d files (%s)", len(m.Files), formatSize(totalSize)))
+
+			var answer string
+			if bg, ok := gw.(platform.BatchGateway); ok {
+				answer = bg.AskBatch(conn.RemoteAddr().String(), fileInfos)
+			} else {
+				answer = gw.Ask(fmt.Sprintf("Incoming batch: %d files (%s)", len(m.Files), formatSize(totalSize)))
+			}
+
 			if answer == "ACCEPT" {
 				_, err = conn.Write(Accept().MarshalMessage())
 				if err != nil {

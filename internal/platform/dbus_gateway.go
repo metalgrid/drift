@@ -100,7 +100,7 @@ func (g *DBusGateway) Shutdown() {
 }
 
 func (g *DBusGateway) NewRequest(to, file string) error {
-	g.reqch <- Request{To: to, File: file}
+	g.reqch <- Request{To: to, Files: []string{file}}
 	return nil
 }
 

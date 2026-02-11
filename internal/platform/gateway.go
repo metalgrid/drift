@@ -7,8 +7,13 @@ import (
 )
 
 type Request struct {
-	To   string
-	File string
+	To    string
+	Files []string
+}
+
+type FileInfo struct {
+	Filename string
+	Size     int64
 }
 
 type Gateway interface {
@@ -20,6 +25,11 @@ type Gateway interface {
 	NewRequest(string, string) error
 	Ask(string) string
 	Notify(string)
+}
+
+type BatchGateway interface {
+	Gateway
+	AskBatch(peerName string, files []FileInfo) string
 }
 
 func NewGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {

@@ -151,8 +151,13 @@ func main() {
 					platformGateway.Notify(fmt.Sprintf("Unable to secure connection with peer: %s", err))
 				}
 
-				go transport.HandleConnection(context.WithValue(appCtx, "filename", request.File), sc, platformGateway)
-				transport.SendFile(request.File, sc)
+				if len(request.Files) > 1 {
+					go transport.HandleConnection(appCtx, sc, platformGateway)
+					transport.SendBatch(request.Files, sc)
+				} else if len(request.Files) == 1 {
+					go transport.HandleConnection(context.WithValue(appCtx, "filename", request.Files[0]), sc, platformGateway)
+					transport.SendFile(request.Files[0], sc)
+				}
 			}
 		}
 	}()

@@ -10,14 +10,15 @@ github.com/adrg/xdg/internal/userdirs
 # github.com/betamos/zeroconf v0.1.5
 ## explicit; go 1.22
 github.com/betamos/zeroconf
-# github.com/chzyer/readline v1.5.1
-## explicit; go 1.15
-github.com/chzyer/readline
 # github.com/dblohm7/wingoes v0.0.0-20231019175336-f6e33aa7cc34
 ## explicit; go 1.18
 github.com/dblohm7/wingoes
 github.com/dblohm7/wingoes/com
 github.com/dblohm7/wingoes/internal
+# github.com/godbus/dbus/v5 v5.0.4
+## explicit; go 1.12
+github.com/godbus/dbus/v5
+github.com/godbus/dbus/v5/introspect
 # github.com/mattn/go-colorable v0.1.13
 ## explicit; go 1.15
 github.com/mattn/go-colorable

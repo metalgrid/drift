@@ -112,3 +112,45 @@ All 17 tests pass (11 existing + 6 new batch tests)
 - internal/transport/message.go (types, marshal, unmarshal, MakeBatchOffer)
 - internal/transport/connection.go (HandleConnection batch case, SendBatch)
 - internal/transport/message_test.go (6 new tests)
+
+## [2026-02-12] Task: 7 - Gateway Interface Evolution for Batch Transfers
+
+### Changes Implemented
+- Added `FileInfo` struct and `BatchGateway` interface to `internal/platform/gateway.go`
+- Evolved `Request` struct from `File string` to `Files []string` for multi-file support
+- Updated all platform gateway implementations (Linux/DBus, Windows, macOS) to use Files slice
+- Added type assertion pattern in `connection.go` to detect BatchGateway capability
+- Updated outbound processors in both `run.go` and `main.go` to handle single vs batch transfers
+
+### Key Patterns
+- **Backwards Compatibility**: Kept `Ask(string) string` method; BatchGateway extends Gateway
+- **Type Assertion Pattern**: `if bg, ok := gw.(BatchGateway); ok { ... }` for optional interface
+- **Slice Wrapping**: Single file requests wrap as `[]string{file}` for uniform handling
+- **Conditional Dispatch**: Check `len(request.Files)` to route to SendFile vs SendBatch
+
+### Platform-Specific Notes
+- **Linux (DBus)**: Uses dbus_gateway.go, requires godbus/dbus/v5 in vendor
+- **Windows**: Uses walk library for GUI, gateway_windows.go
+- **macOS**: Uses darwinkit, gateway_macosx.go (build constraints exclude some packages on Linux)
+- All platforms now support Files slice in Request struct
+
+### Build Verification
+- `go build ./cmd/drift` succeeds on Linux and Windows
+- Darwin build shows expected vendor constraint warnings (platform-specific)
+- IPv6 format warnings in vet are pre-existing, not introduced by this change
+- Required `go mod tidy && go mod vendor` to add godbus dependency
+
+### Files Modified
+1. internal/platform/gateway.go - Added BatchGateway interface, FileInfo struct, updated Request
+2. internal/platform/dbus_gateway.go - Updated NewRequest to use Files slice
+3. internal/platform/gateway_windows.go - Updated NewRequest to use Files slice
+4. internal/platform/gateway_macosx.go - No changes needed (stub implementation)
+5. internal/transport/connection.go - Added BatchGateway type assertion for BatchOffer handling
+6. internal/app/run.go - Updated outbound processor for Files iteration
+7. cmd/drift/main.go - Updated outbound processor for Files iteration
+8. go.mod, go.sum, vendor/ - Added godbus dependency
+
+### Gotchas
+- Must run `go mod vendor` after adding new dependencies
+- Platform-specific build tags mean not all gateway files compile on all platforms
+- Type assertion provides graceful fallback for gateways that don't implement BatchGateway

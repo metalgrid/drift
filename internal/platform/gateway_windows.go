@@ -70,8 +70,8 @@ func (g *Win32Gateway) Run(ctx context.Context) error {
 func (g *Win32Gateway) Shutdown() {}
 func (g *Win32Gateway) NewRequest(peer, file string) error {
 	g.reqch <- Request{
-		To:   peer,
-		File: file,
+		To:    peer,
+		Files: []string{file},
 	}
 	return nil
 }
