@@ -583,3 +583,51 @@ row.AddController(drop)
 - Task 10: System tray integration (DBus StatusNotifierItem)
 - Task 12: Transfer progress UI
 - Task 13a/13b: Incoming transfer dialog
+
+## [2026-02-12 01:02] Task: 10 - DBus StatusNotifierItem System Tray
+
+### Implementation
+- Created tray_linux.go with DBus SNI implementation
+- Exported object on /StatusNotifierItem path
+- Registered with org.kde.StatusNotifierWatcher
+- Implemented required properties: Category, Id, Title, IconName, ItemIsMenu
+- Implemented Activate (toggle window) and SecondaryActivate (quit)
+- Integrated into guiGateway.Run() with callbacks
+- Window starts hidden, tray click shows/hides
+- Close button hides to tray instead of quitting
+
+### Key Patterns
+- dbus.SessionBus() for user-level DBus
+- conn.Export(obj, path, interface) exports object
+- Property getters: func() (T, *dbus.Error)
+- Method handlers: func(args...) *dbus.Error
+- glib.IdleAdd for GTK calls from DBus callbacks
+- ConnectCloseRequest returns bool (true = prevent close)
+- window.IsVisible() to check visibility state
+- introspect.NewIntrospectable() for DBus introspection support
+
+### DBus SNI Spec
+- Interface: org.kde.StatusNotifierItem
+- Watcher: org.kde.StatusNotifierWatcher at /StatusNotifierWatcher
+- Activate = left-click, SecondaryActivate = right-click
+- ItemIsMenu = false for click activation (not menu)
+- Required properties: Category, Id, Title, IconName, ItemIsMenu
+- Registration: Call RegisterStatusNotifierItem on watcher with object path
+
+### Critical Implementation Details
+- Export introspection data via introspect.NewIntrospectable()
+- Pass object path "/StatusNotifierItem" to watcher (not full bus name)
+- Close DBus connection in Shutdown() before quitting app
+- Error handling: gracefully continue without tray if registration fails
+- Window.SetVisible(false) starts hidden (tray shows it)
+- ConnectCloseRequest(func() bool) - return true prevents default close
+
+### Verification
+- Build with -tags gui: SUCCESS (7.0M binary)
+- Tests: ALL PASS (no regressions)
+- Vet: No errors (CGo warnings pre-existing)
+- Files: tray_linux.go (new), gateway_linux_gui.go (modified)
+
+### Next Steps
+- Task 12: Transfer progress UI
+- Task 13: Incoming transfer dialog

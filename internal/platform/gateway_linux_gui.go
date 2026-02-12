@@ -24,6 +24,7 @@ type guiGateway struct {
 	reqch  chan<- Request
 	app    *gtk.Application
 	window *gtk.ApplicationWindow
+	tray   *SystemTray
 }
 
 func (g *guiGateway) buildPeerList() *gtk.ListBox {
@@ -162,7 +163,41 @@ func (g *guiGateway) Run(ctx context.Context) error {
 		box.Append(scrolled)
 
 		g.window.SetChild(box)
-		g.window.Show()
+
+		// Initialize system tray
+		tray, err := NewSystemTray(
+			func() {
+				// Toggle window visibility
+				glib.IdleAdd(func() {
+					if g.window.IsVisible() {
+						g.window.Hide()
+					} else {
+						g.window.Show()
+					}
+				})
+			},
+			func() {
+				// Quit app
+				glib.IdleAdd(func() {
+					g.app.Quit()
+				})
+			},
+		)
+		if err != nil {
+			fmt.Printf("Failed to create system tray: %v\n", err)
+			// Continue without tray
+		} else {
+			g.tray = tray
+		}
+
+		// Start window hidden (tray click will show it)
+		g.window.SetVisible(false)
+
+		// Handle window close button → hide to tray instead of quit
+		g.window.ConnectCloseRequest(func() bool {
+			g.window.Hide()
+			return true // Prevent default close behavior
+		})
 
 		// Register peer change observer
 		g.peers.OnChange(func() {
@@ -187,6 +222,9 @@ func (g *guiGateway) Run(ctx context.Context) error {
 }
 
 func (g *guiGateway) Shutdown() {
+	if g.tray != nil {
+		g.tray.Close()
+	}
 	glib.IdleAdd(func() {
 		if g.app != nil {
 			g.app.Quit()

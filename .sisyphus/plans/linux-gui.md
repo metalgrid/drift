@@ -632,7 +632,7 @@ Wave 6 (After Wave 5):
 
 - [x] 9. GTK4 Panel Window — Peer List, Drag-and-Drop, File Picker
 
-- [ ] 10. DBus StatusNotifierItem — System Tray
+- [x] 10. DBus StatusNotifierItem — System Tray
 
 - [x] 11. Desktop Notifications
 
