@@ -19,6 +19,13 @@ import (
 	"github.com/metalgrid/drift/internal/zeroconf"
 )
 
+type promptRequest struct {
+	question string
+	files    []FileInfo
+	peerName string
+	response chan string
+}
+
 type TransferState struct {
 	ID         string
 	PeerName   string
@@ -41,6 +48,7 @@ type guiGateway struct {
 	transfers    map[string]*TransferState
 	transferList *gtk.ListBox
 	transferBox  *gtk.Box
+	prompts      chan promptRequest
 }
 
 func (g *guiGateway) buildPeerList() *gtk.ListBox {
@@ -312,6 +320,17 @@ func (g *guiGateway) Run(ctx context.Context) error {
 				scrolled.SetChild(newList)
 			})
 		})
+
+		// Start prompt handler
+		go func() {
+			for req := range g.prompts {
+				reqCopy := req // Capture for closure
+				glib.IdleAdd(func() {
+					response := g.showDialog(reqCopy)
+					reqCopy.response <- response
+				})
+			}
+		}()
 	})
 
 	// Watch for context cancellation
@@ -344,8 +363,12 @@ func (g *guiGateway) NewRequest(to, file string) error {
 }
 
 func (g *guiGateway) Ask(question string) string {
-	fmt.Println("GUI gateway: Ask() not implemented")
-	return "DECLINE"
+	responseCh := make(chan string, 1)
+	g.prompts <- promptRequest{
+		question: question,
+		response: responseCh,
+	}
+	return <-responseCh
 }
 
 func (g *guiGateway) Notify(message string) {
@@ -354,8 +377,136 @@ func (g *guiGateway) Notify(message string) {
 }
 
 func (g *guiGateway) AskBatch(peerName string, files []FileInfo) string {
-	fmt.Println("GUI gateway: AskBatch() not implemented")
+	responseCh := make(chan string, 1)
+	g.prompts <- promptRequest{
+		peerName: peerName,
+		files:    files,
+		response: responseCh,
+	}
+	return <-responseCh
+}
+
+func (g *guiGateway) showDialog(req promptRequest) string {
+	if req.peerName != "" {
+		totalSize := int64(0)
+		for _, f := range req.files {
+			totalSize += f.Size
+		}
+		msg := fmt.Sprintf("Incoming transfer from %s: %d files (%s)",
+			req.peerName, len(req.files), formatSize(totalSize))
+		_ = SendNotification("Drift", msg, "internal/platform/assets/drift-icon.svg")
+	} else if req.question != "" {
+		_ = SendNotification("Drift", req.question, "internal/platform/assets/drift-icon.svg")
+	}
+
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Incoming Transfer")
+	dialog.SetModal(true)
+	dialog.SetTransientFor(&g.window.Window)
+	dialog.SetDefaultSize(400, 300)
+
+	content := dialog.ContentArea()
+	box := gtk.NewBox(gtk.OrientationVertical, 10)
+	box.SetMarginTop(10)
+	box.SetMarginBottom(10)
+	box.SetMarginStart(10)
+	box.SetMarginEnd(10)
+
+	if req.peerName != "" {
+		headerLabel := gtk.NewLabel("")
+		headerLabel.SetMarkup(fmt.Sprintf("<b>Incoming files from %s</b>", req.peerName))
+		box.Append(headerLabel)
+
+		listBox := gtk.NewListBox()
+		for _, file := range req.files {
+			row := gtk.NewBox(gtk.OrientationHorizontal, 10)
+			nameLabel := gtk.NewLabel(file.Filename)
+			nameLabel.SetHExpand(true)
+			nameLabel.SetXAlign(0)
+			row.Append(nameLabel)
+			sizeLabel := gtk.NewLabel(formatSize(file.Size))
+			row.Append(sizeLabel)
+			listBox.Append(row)
+		}
+		scrolled := gtk.NewScrolledWindow()
+		scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+		scrolled.SetVExpand(true)
+		scrolled.SetChild(listBox)
+		box.Append(scrolled)
+
+		totalSize := int64(0)
+		for _, f := range req.files {
+			totalSize += f.Size
+		}
+		totalLabel := gtk.NewLabel(fmt.Sprintf("%d files, %s total", len(req.files), formatSize(totalSize)))
+		box.Append(totalLabel)
+	} else {
+		questionLabel := gtk.NewLabel(req.question)
+		questionLabel.SetWrap(true)
+		box.Append(questionLabel)
+	}
+
+	progressBar := gtk.NewProgressBar()
+	progressBar.SetFraction(1.0)
+	box.Append(progressBar)
+
+	countdownLabel := gtk.NewLabel("Auto-declining in 30s")
+	box.Append(countdownLabel)
+
+	content.Append(box)
+
+	dialog.AddButton("Decline", int(gtk.ResponseReject))
+	acceptBtn := dialog.AddButton("Accept", int(gtk.ResponseAccept))
+	acceptBtn.AddCssClass("suggested-action")
+	dialog.SetDefaultResponse(int(gtk.ResponseAccept))
+
+	timeLeft := 30
+	timerActive := true
+	timeoutID := glib.TimeoutAdd(1000, func() bool {
+		if !timerActive {
+			return false
+		}
+		timeLeft--
+		if timeLeft <= 0 {
+			dialog.Response(int(gtk.ResponseReject))
+			return false
+		}
+		progressBar.SetFraction(float64(timeLeft) / 30.0)
+		countdownLabel.SetLabel(fmt.Sprintf("Auto-declining in %ds", timeLeft))
+		return true
+	})
+
+	responseID := dialog.Run()
+	timerActive = false
+	glib.SourceRemove(timeoutID)
+	dialog.Destroy()
+
+	if responseID == int(gtk.ResponseAccept) {
+		return "ACCEPT"
+	}
 	return "DECLINE"
+}
+
+func formatSize(bytes int64) string {
+	const (
+		KiB = 1024
+		MiB = KiB * 1024
+		GiB = MiB * 1024
+		TiB = GiB * 1024
+	)
+
+	switch {
+	case bytes >= TiB:
+		return fmt.Sprintf("%.2f TiB", float64(bytes)/float64(TiB))
+	case bytes >= GiB:
+		return fmt.Sprintf("%.2f GiB", float64(bytes)/float64(GiB))
+	case bytes >= MiB:
+		return fmt.Sprintf("%.2f MiB", float64(bytes)/float64(MiB))
+	case bytes >= KiB:
+		return fmt.Sprintf("%.2f KiB", float64(bytes)/float64(KiB))
+	default:
+		return fmt.Sprintf("%d B", bytes)
+	}
 }
 
 func newGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {
@@ -364,5 +515,6 @@ func newGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {
 		peers:     peers,
 		reqch:     requests,
 		transfers: make(map[string]*TransferState),
+		prompts:   make(chan promptRequest),
 	}
 }
