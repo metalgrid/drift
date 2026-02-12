@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -18,13 +19,28 @@ import (
 	"github.com/metalgrid/drift/internal/zeroconf"
 )
 
+type TransferState struct {
+	ID         string
+	PeerName   string
+	Filename   string
+	Direction  string // "↑" for upload, "↓" for download
+	Total      int64
+	Current    int64
+	Speed      float64 // bytes per second
+	LastUpdate time.Time
+	Status     string // "active", "complete", "failed"
+}
+
 type guiGateway struct {
-	mu     *sync.Mutex
-	peers  *zeroconf.Peers
-	reqch  chan<- Request
-	app    *gtk.Application
-	window *gtk.ApplicationWindow
-	tray   *SystemTray
+	mu           *sync.Mutex
+	peers        *zeroconf.Peers
+	reqch        chan<- Request
+	app          *gtk.Application
+	window       *gtk.ApplicationWindow
+	tray         *SystemTray
+	transfers    map[string]*TransferState
+	transferList *gtk.ListBox
+	transferBox  *gtk.Box
 }
 
 func (g *guiGateway) buildPeerList() *gtk.ListBox {
@@ -134,6 +150,82 @@ func (g *guiGateway) buildPeerList() *gtk.ListBox {
 	return listBox
 }
 
+func (g *guiGateway) buildTransferList() *gtk.ListBox {
+	listBox := gtk.NewListBox()
+	listBox.SetSelectionMode(gtk.SelectionNone)
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	for _, transfer := range g.transfers {
+		if transfer.Status != "active" {
+			continue
+		}
+
+		row := gtk.NewBox(gtk.OrientationHorizontal, 10)
+		row.SetMarginTop(5)
+		row.SetMarginBottom(5)
+		row.SetMarginStart(10)
+		row.SetMarginEnd(10)
+
+		label := gtk.NewLabel(transfer.Direction + " " + transfer.Filename)
+		label.SetHExpand(true)
+		label.SetXAlign(0)
+		row.Append(label)
+
+		progress := gtk.NewProgressBar()
+		progress.SetSizeRequest(200, -1)
+		if transfer.Total > 0 {
+			fraction := float64(transfer.Current) / float64(transfer.Total)
+			progress.SetFraction(fraction)
+		}
+		row.Append(progress)
+
+		percentage := 0.0
+		if transfer.Total > 0 {
+			percentage = (float64(transfer.Current) / float64(transfer.Total)) * 100
+		}
+		speedText := fmt.Sprintf("%.1f MB/s - %.0f%%", transfer.Speed/1024/1024, percentage)
+		speedLabel := gtk.NewLabel(speedText)
+		row.Append(speedLabel)
+
+		listBox.Append(row)
+	}
+
+	return listBox
+}
+
+func (g *guiGateway) UpdateTransfer(id string, current int64) {
+	g.mu.Lock()
+	transfer, exists := g.transfers[id]
+	if !exists {
+		g.mu.Unlock()
+		return
+	}
+
+	now := time.Now()
+	elapsed := now.Sub(transfer.LastUpdate).Seconds()
+	if elapsed > 0 {
+		delta := current - transfer.Current
+		transfer.Speed = float64(delta) / elapsed
+	}
+
+	transfer.Current = current
+	transfer.LastUpdate = now
+	g.mu.Unlock()
+
+	glib.IdleAdd(func() {
+		newList := g.buildTransferList()
+		if g.transferBox != nil {
+			child := g.transferBox.FirstChild()
+			if child != nil {
+				g.transferBox.Remove(child)
+			}
+			g.transferBox.Append(newList)
+		}
+	})
+}
+
 func (g *guiGateway) Run(ctx context.Context) error {
 	runtime.LockOSThread()
 
@@ -161,6 +253,19 @@ func (g *guiGateway) Run(ctx context.Context) error {
 		// Main container
 		box := gtk.NewBox(gtk.OrientationVertical, 0)
 		box.Append(scrolled)
+
+		// Transfer list section
+		transferLabel := gtk.NewLabel("")
+		transferLabel.SetMarkup("<b>Active Transfers</b>")
+		transferLabel.SetXAlign(0)
+		transferLabel.SetMarginStart(10)
+		transferLabel.SetMarginTop(10)
+		box.Append(transferLabel)
+
+		g.transferBox = gtk.NewBox(gtk.OrientationVertical, 0)
+		g.transferList = g.buildTransferList()
+		g.transferBox.Append(g.transferList)
+		box.Append(g.transferBox)
 
 		g.window.SetChild(box)
 
@@ -255,8 +360,9 @@ func (g *guiGateway) AskBatch(peerName string, files []FileInfo) string {
 
 func newGateway(peers *zeroconf.Peers, requests chan<- Request) Gateway {
 	return &guiGateway{
-		&sync.Mutex{},
-		peers,
-		requests,
+		mu:        &sync.Mutex{},
+		peers:     peers,
+		reqch:     requests,
+		transfers: make(map[string]*TransferState),
 	}
 }

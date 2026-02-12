@@ -631,3 +631,134 @@ row.AddController(drop)
 ### Next Steps
 - Task 12: Transfer progress UI
 - Task 13: Incoming transfer dialog
+
+## [2026-02-12 01:15] Task: 12 - Transfer Progress UI
+
+### Implementation Summary
+Added transfer progress tracking UI to Linux GUI with real-time speed calculation and thread-safe updates. Implemented TransferState struct, buildTransferList() method, and UpdateTransfer() method with glib.IdleAdd for cross-goroutine UI updates.
+
+### Key Implementation Details
+
+**TransferState Struct**:
+```go
+type TransferState struct {
+    ID         string
+    PeerName   string
+    Filename   string
+    Direction  string    // "↑" for upload, "↓" for download
+    Total      int64
+    Current    int64
+    Speed      float64   // bytes per second
+    LastUpdate time.Time
+    Status     string    // "active", "complete", "failed"
+}
+```
+
+**guiGateway Fields Added**:
+- `transfers map[string]*TransferState` — keyed by transfer ID
+- `transferList *gtk.ListBox` — widget for displaying transfers
+- `transferBox *gtk.Box` — container for transfer section
+
+**buildTransferList() Method**:
+- Creates gtk.ListBox with SelectionNone mode
+- Locks mutex and iterates over transfers map
+- Only shows transfers with Status == "active"
+- Each row: horizontal box with:
+  - Direction + filename label (left-aligned, expandable)
+  - Progress bar (200px width, SetFraction for 0.0-1.0 range)
+  - Speed + percentage label (e.g., "1.2 MB/s - 45%")
+- Margins: 5px top/bottom, 10px start/end
+
+**UpdateTransfer() Method**:
+- Locks mutex, finds transfer by ID
+- Calculates speed: `delta_bytes / delta_time` (bytes per second)
+- Updates Current and LastUpdate fields
+- Unlocks mutex
+- Uses `glib.IdleAdd()` to rebuild list on GTK main thread
+- Removes old child from transferBox, appends new list
+
+**Integration into Run() activate callback**:
+- Added after peer list scrolled window
+- Creates bold "Active Transfers" label
+- Creates transferBox (vertical box) and builds initial transfer list
+- Appends both label and box to main window
+
+**Initialization in newGateway()**:
+- Changed from positional struct initialization to named fields
+- Added `transfers: make(map[string]*TransferState)`
+
+### Key Patterns Verified
+
+**Speed Calculation**:
+- Track LastUpdate timestamp on each UpdateTransfer call
+- Calculate elapsed time: `now.Sub(transfer.LastUpdate).Seconds()`
+- Calculate delta bytes: `current - transfer.Current`
+- Speed = delta / elapsed (bytes per second)
+- Display: MB/s = speed / 1024 / 1024
+
+**Progress Bar API**:
+- `gtk.NewProgressBar()` creates widget
+- `SetFraction(float64)` sets progress (0.0 to 1.0)
+- `SetSizeRequest(width, -1)` sets minimum width
+- Percentage calculation: `(current / total) * 100`
+
+**Thread Safety**:
+- Mutex protects transfers map access
+- All widget updates via `glib.IdleAdd()` on GTK main thread
+- Pattern: lock → read/modify → unlock → IdleAdd for UI update
+
+**List Rebuild Strategy**:
+- Simple MVP approach: rebuild entire list on each update
+- Remove old child via `FirstChild()` and `Remove()`
+- Append new list via `Append(newList)`
+- Avoids complex row update logic
+
+### Build Verification Results
+- `go build -tags gui -o drift-gui ./cmd/drift` → SUCCESS (7.0M binary)
+- `go test ./... -count=1` → ALL PASS (no regressions)
+  - config: 0.003s
+  - transport: 0.003s
+  - zeroconf: 0.004s
+- `go vet -tags gui ./internal/platform/` → No errors (CGo warnings pre-existing)
+- `git status --short` → ONLY gateway_linux_gui.go modified (plus binary timestamp)
+
+### Files Modified
+- `internal/platform/gateway_linux_gui.go`
+  - Added time import (line 12)
+  - Added TransferState struct (lines 22-32)
+  - Added transfers, transferList, transferBox fields to guiGateway (lines 41-43)
+  - Added buildTransferList() method (lines 153-196)
+  - Added UpdateTransfer() method (lines 198-227)
+  - Integrated transfer section into Run() activate callback (lines 257-268)
+  - Updated newGateway() to initialize transfers map (lines 361-368)
+
+### Code Review Checklist
+- [x] TransferState struct defined with all required fields
+- [x] transfers map and transferList/transferBox fields added to guiGateway
+- [x] buildTransferList() creates progress bars with direction, filename, speed
+- [x] UpdateTransfer() calculates speed and updates UI via glib.IdleAdd
+- [x] Transfer section added to window below peer list
+- [x] transfers map initialized in newGateway()
+- [x] time import added
+- [x] Build succeeds with -tags gui flag
+- [x] Tests pass (no regressions)
+- [x] Only gateway_linux_gui.go modified
+
+### Integration with Existing Features
+- Works alongside peer list (Task 9b) and system tray (Task 10)
+- Observer pattern (Task 9a) triggers peer list rebuild on changes
+- Transfer section appears below peer list in window layout
+- Thread-safe: all UI updates via glib.IdleAdd pattern
+
+### Next Steps
+- Task 13: Incoming transfer dialog (Ask/AskBatch implementation)
+- Task 14b: Wire progress callbacks to UpdateTransfer()
+- Task 14c: Add transfer completion/error handling
+
+### Key Learnings
+1. **Speed Calculation**: Must track LastUpdate timestamp and calculate delta bytes / delta time
+2. **Progress Bar**: SetFraction expects 0.0-1.0 range, not percentage
+3. **List Rebuild**: Simple approach (rebuild entire list) works well for MVP
+4. **Thread Safety**: Mutex for data access, glib.IdleAdd for UI updates
+5. **GTK4 Patterns**: SetMarkup for bold text, SetHExpand/SetXAlign for layout
+6. **Closure Safety**: Capture variables before loop to avoid closure issues
