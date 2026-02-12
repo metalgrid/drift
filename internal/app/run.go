@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/metalgrid/drift/internal/config"
 	"github.com/metalgrid/drift/internal/platform"
 	"github.com/metalgrid/drift/internal/secret"
 	"github.com/metalgrid/drift/internal/server"
@@ -16,6 +17,15 @@ import (
 )
 
 func Run(ctx context.Context, identity string) error {
+	cfg, err := config.Load(config.DefaultPath())
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
+	if identity == "" && cfg.Identity != "" {
+		identity = cfg.Identity
+	}
+
 	var opts *zeroconf.ZeroconfOptions
 	if identity != "" {
 		opts = &zeroconf.ZeroconfOptions{Identity: identity}
