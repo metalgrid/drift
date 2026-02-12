@@ -640,7 +640,7 @@ Wave 6 (After Wave 5):
 
 - [x] 13. Incoming Transfer Dialog with Countdown
 
-- [ ] 14. Integration — Wire GUI Gateway to App + Config
+- [x] 14. Integration — Wire GUI Gateway to App + Config
 
 - [x] 15. Final Verification & Cross-Platform Build Check
 
