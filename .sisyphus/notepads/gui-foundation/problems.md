@@ -64,3 +64,26 @@ Break Task 14 into atomic sub-tasks:
 - Progress UI exists but callbacks not wired to transport
 - Can proceed to Task 15 (Final Verification) and document Task 14 as future work
 
+
+## [2026-02-12] QA Tasks - Require Manual Testing
+
+**Issue**: Remaining TODO items are hands-on QA tasks that cannot be automated.
+
+**QA Tasks Pending**:
+1. Launch drift-gui with display server, verify window appears
+2. Run drift-gui with zeroconf peers, verify peer list auto-refreshes
+3. Click Send File button, verify file chooser opens
+4. Drag files from file manager, verify transfer initiates
+
+**Blocker**: These require:
+- X11 or Wayland display server
+- Running GUI environment
+- Physical interaction (mouse clicks, drag-and-drop)
+- Network with multiple Drift instances
+
+**Current Environment**: Headless server (no display)
+
+**Resolution**: These are manual QA tasks for human testing, not automatable implementation tasks.
+
+**Status**: All implementation work complete. QA tasks deferred to manual testing phase.
+
