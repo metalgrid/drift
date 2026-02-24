@@ -1,1 +1,13 @@
 **/*.syso
+
+# Binaries
+drift
+drift-gui
+drift.exe
+*.exe
+
+# Tool directories
+.omc/
+.sisyphus/
+AGENTS.md
+**/AGENTS.md
