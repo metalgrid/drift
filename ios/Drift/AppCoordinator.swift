@@ -5,6 +5,7 @@ import Observation
 
 /// Wires together discovery, server, crypto, and UI.
 /// Mirrors Go's app.Run().
+@MainActor
 @Observable
 final class AppCoordinator {
     let keyPair: DriftKeyPair
@@ -110,23 +111,17 @@ final class AppCoordinator {
                     await self?.promptUserForOffer(offer) ?? false
                 },
                 onProgress: { [weak self] current, total in
-                    DispatchQueue.main.async {
-                        self?.transferProgress = Double(current) / Double(total)
-                        self?.transferActive = total > 0
-                    }
+                    self?.transferProgress = Double(current) / Double(total)
+                    self?.transferActive = total > 0
                 },
                 onComplete: { [weak self] message in
-                    DispatchQueue.main.async {
-                        self?.transferActive = false
-                        self?.transferProgress = 0
-                        self?.statusMessage = message
-                    }
+                    self?.transferActive = false
+                    self?.transferProgress = 0
+                    self?.statusMessage = message
                 },
                 onError: { [weak self] message in
-                    DispatchQueue.main.async {
-                        self?.transferActive = false
-                        self?.statusMessage = message
-                    }
+                    self?.transferActive = false
+                    self?.statusMessage = message
                 }
             )
             await handler.run(peerName: peer.instance)
@@ -144,19 +139,38 @@ final class AppCoordinator {
                 transferActive = true
                 transferProgress = 0
 
+                guard let firstAddress = peer.addresses.first, !firstAddress.isEmpty else {
+                    throw CryptoError.writeFailed
+                }
+                guard let port = NWEndpoint.Port(rawValue: peer.port) else {
+                    throw CryptoError.writeFailed
+                }
+
                 let nwConnection = NWConnection(
-                    host: NWEndpoint.Host(peer.addresses.first ?? ""),
-                    port: NWEndpoint.Port(rawValue: peer.port)!,
+                    host: NWEndpoint.Host(firstAddress),
+                    port: port,
                     using: .tcp
                 )
 
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    var didResume = false
                     nwConnection.stateUpdateHandler = { state in
+                        if didResume {
+                            return
+                        }
                         switch state {
                         case .ready:
+                            didResume = true
+                            nwConnection.stateUpdateHandler = nil
                             continuation.resume()
                         case .failed(let error):
+                            didResume = true
+                            nwConnection.stateUpdateHandler = nil
                             continuation.resume(throwing: error)
+                        case .cancelled:
+                            didResume = true
+                            nwConnection.stateUpdateHandler = nil
+                            continuation.resume(throwing: CryptoError.readFailed)
                         default:
                             break
                         }
@@ -174,22 +188,16 @@ final class AppCoordinator {
                     connection: secureConn,
                     onOffer: { _ in false },
                     onProgress: { [weak self] current, total in
-                        DispatchQueue.main.async {
-                            self?.transferProgress = Double(current) / Double(total)
-                        }
+                        self?.transferProgress = Double(current) / Double(total)
                     },
                     onComplete: { [weak self] message in
-                        DispatchQueue.main.async {
-                            self?.transferActive = false
-                            self?.transferProgress = 0
-                            self?.statusMessage = message
-                        }
+                        self?.transferActive = false
+                        self?.transferProgress = 0
+                        self?.statusMessage = message
                     },
                     onError: { [weak self] message in
-                        DispatchQueue.main.async {
-                            self?.transferActive = false
-                            self?.statusMessage = message
-                        }
+                        self?.transferActive = false
+                        self?.statusMessage = message
                     }
                 )
 

@@ -37,7 +37,11 @@ struct PeerListView: View {
             }
             .sheet(item: Binding(
                 get: { coordinator.incomingOffer },
-                set: { _ in }
+                set: { offer in
+                    if offer == nil, coordinator.incomingOffer != nil {
+                        coordinator.respondToOffer(accepted: false)
+                    }
+                }
             )) { offer in
                 IncomingTransferSheet(offer: offer) { accepted in
                     coordinator.respondToOffer(accepted: accepted)

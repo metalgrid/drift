@@ -53,19 +53,33 @@ final class SecureConnection {
 
     /// Read exactly `count` bytes from the NWConnection.
     private func readExactly(count: Int) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            connection.receive(minimumIncompleteLength: count, maximumLength: count) { data, _, _, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
+        var collected = Data()
+        collected.reserveCapacity(count)
+
+        while collected.count < count {
+            let remaining = count - collected.count
+            let chunk = try await withCheckedThrowingContinuation { continuation in
+                connection.receive(minimumIncompleteLength: 1, maximumLength: remaining) { data, _, isComplete, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    guard let data, !data.isEmpty else {
+                        if isComplete {
+                            continuation.resume(throwing: CryptoError.readFailed)
+                        } else {
+                            continuation.resume(throwing: CryptoError.readFailed)
+                        }
+                        return
+                    }
+                    continuation.resume(returning: data)
                 }
-                guard let data, data.count == count else {
-                    continuation.resume(throwing: CryptoError.readFailed)
-                    return
-                }
-                continuation.resume(returning: data)
             }
+
+            collected.append(chunk)
         }
+
+        return collected
     }
 
     /// Write raw bytes to the NWConnection.

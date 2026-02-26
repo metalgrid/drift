@@ -122,4 +122,11 @@ struct MessageTests {
             return
         }
     }
+
+    @Test("Protocol filename validation rejects delimiters")
+    func protocolFilenameValidation() {
+        #expect(DriftMessage.isValidProtocolFilename("normal.txt") == true)
+        #expect(DriftMessage.isValidProtocolFilename("bad|name.txt") == false)
+        #expect(DriftMessage.isValidProtocolFilename("bad\nname.txt") == false)
+    }
 }

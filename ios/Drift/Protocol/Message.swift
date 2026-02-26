@@ -96,4 +96,8 @@ enum DriftMessage {
         }
         return false
     }
+
+    static func isValidProtocolFilename(_ filename: String) -> Bool {
+        !filename.isEmpty && !filename.contains(fieldSeparator) && !filename.contains(String(endOfMessage))
+    }
 }

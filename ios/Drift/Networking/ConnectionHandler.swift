@@ -7,6 +7,7 @@ typealias ProgressCallback = (Int64, Int64) -> Void
 /// Handles the message loop on a secure connection.
 /// Matches Go's transport.HandleConnection().
 final class ConnectionHandler {
+    private static let maxControlBufferBytes = 64 * 1024
     private let connection: SecureConnection
     private let onOffer: OfferPrompt
     private let onProgress: ProgressCallback?
@@ -34,6 +35,10 @@ final class ConnectionHandler {
             while true {
                 let chunk = try await connection.readDecrypted()
                 buffer.append(chunk)
+
+                if buffer.count > Self.maxControlBufferBytes {
+                    throw CryptoError.readFailed
+                }
 
                 while let newlineIndex = buffer.firstIndex(of: UInt8(ascii: "\n")) {
                     let messageData = buffer[buffer.startIndex...newlineIndex]
@@ -97,8 +102,9 @@ final class ConnectionHandler {
     /// Matches Go's storeFile with LimitReader.
     private func receiveFile(filename: String, size: Int64) async throws {
         let storage = FileStorage()
-        let tempURL = storage.tempFileURL(for: filename)
-        let finalURL = storage.fileURL(for: filename)
+        let destination = try storage.destinationURLs(for: filename)
+        let tempURL = destination.temp
+        let finalURL = destination.final
 
         try storage.ensureDirectory()
 
@@ -132,9 +138,13 @@ final class ConnectionHandler {
         if fileURLs.count > 1 {
             var fileEntries: [(filename: String, size: Int64)] = []
             for url in fileURLs {
+                let filename = url.lastPathComponent
+                guard DriftMessage.isValidProtocolFilename(filename) else {
+                    throw CryptoError.writeFailed
+                }
                 let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
                 let size = (attrs[.size] as? Int64) ?? 0
-                fileEntries.append((filename: url.lastPathComponent, size: size))
+                fileEntries.append((filename: filename, size: size))
             }
 
             let offer = DriftMessage.makeBatchOffer(files: fileEntries)
@@ -154,6 +164,9 @@ final class ConnectionHandler {
             }
             onComplete("Batch sent: \(fileURLs.count) files")
         } else if let url = fileURLs.first {
+            guard DriftMessage.isValidProtocolFilename(url.lastPathComponent) else {
+                throw CryptoError.writeFailed
+            }
             let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
             let size = (attrs[.size] as? Int64) ?? 0
 

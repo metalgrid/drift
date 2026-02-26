@@ -10,6 +10,8 @@ enum CryptoError: Error {
     case writeFailed
 }
 
+private let maxEncryptedFrameSize = 8 * 1024 * 1024
+
 // MARK: - EncryptWriter
 
 /// Encrypts data using AES-GCM and writes to an output function.
@@ -110,6 +112,9 @@ final class DecryptReader {
             | (UInt32(lengthBuf[1]) << 16)
             | (UInt32(lengthBuf[2]) << 8)
             | UInt32(lengthBuf[3])
+        if length == 0 || length > UInt32(maxEncryptedFrameSize) {
+            throw CryptoError.readFailed
+        }
 
         // Read encrypted data
         let encrypted = try await readFn(Int(length))
