@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -109,7 +110,7 @@ func main() {
 
 				// Secure the connection
 				sc, err := secret.SecureConnection(conn, &peerPublicKey, privkey)
-				go transport.HandleConnection(appCtx, sc, platformGateway)
+				go transport.HandleConnection(appCtx, sc, platformGateway, nil)
 			}
 		}
 	}()
@@ -131,7 +132,8 @@ func main() {
 					continue
 				}
 
-				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.Addresses[0], peer.Port))
+				target := net.JoinHostPort(peer.Addresses[0].String(), strconv.Itoa(peer.Port))
+				conn, err := net.Dial("tcp", target)
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to connect to peer: %s", err))
 					return
@@ -152,11 +154,19 @@ func main() {
 				}
 
 				if len(request.Files) > 1 {
-					go transport.HandleConnection(appCtx, sc, platformGateway)
-					transport.SendBatch(request.Files, sc)
+					outbound := transport.NewOutboundTransferState()
+					go transport.HandleConnection(appCtx, sc, platformGateway, outbound)
+					if err := transport.SendBatch(request.Files, sc, outbound); err != nil {
+						platformGateway.Notify(fmt.Sprintf("Unable to send batch offer: %s", err))
+						_ = sc.Close()
+					}
 				} else if len(request.Files) == 1 {
-					go transport.HandleConnection(context.WithValue(appCtx, "filename", request.Files[0]), sc, platformGateway)
-					transport.SendFile(request.Files[0], sc)
+					outbound := transport.NewOutboundTransferState()
+					go transport.HandleConnection(appCtx, sc, platformGateway, outbound)
+					if err := transport.SendFile(request.Files[0], sc, outbound); err != nil {
+						platformGateway.Notify(fmt.Sprintf("Unable to send file offer: %s", err))
+						_ = sc.Close()
+					}
 				}
 			}
 		}

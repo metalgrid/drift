@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 
 	"github.com/metalgrid/drift/internal/config"
@@ -112,7 +113,7 @@ func Run(ctx context.Context, identity string) error {
 					_ = conn.Close()
 					continue
 				}
-				go transport.HandleConnection(ctx, sc, platformGateway)
+				go transport.HandleConnection(ctx, sc, platformGateway, nil)
 			}
 		}
 	}()
@@ -132,7 +133,8 @@ func Run(ctx context.Context, identity string) error {
 					continue
 				}
 
-				conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", peer.Addresses[0], peer.Port))
+				target := net.JoinHostPort(peer.Addresses[0].String(), strconv.Itoa(peer.Port))
+				conn, err := net.Dial("tcp", target)
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to connect to peer: %s", err))
 					continue
@@ -156,12 +158,19 @@ func Run(ctx context.Context, identity string) error {
 				}
 
 				if len(request.Files) > 1 {
-					go transport.HandleConnection(ctx, sc, platformGateway)
-					transport.SendBatch(request.Files, sc)
+					outbound := transport.NewOutboundTransferState()
+					go transport.HandleConnection(ctx, sc, platformGateway, outbound)
+					if err := transport.SendBatch(request.Files, sc, outbound); err != nil {
+						platformGateway.Notify(fmt.Sprintf("Unable to send batch offer: %s", err))
+						_ = sc.Close()
+					}
 				} else if len(request.Files) == 1 {
-					requestCtx := context.WithValue(ctx, transport.FilenameKey, request.Files[0])
-					go transport.HandleConnection(requestCtx, sc, platformGateway)
-					transport.SendFile(request.Files[0], sc)
+					outbound := transport.NewOutboundTransferState()
+					go transport.HandleConnection(ctx, sc, platformGateway, outbound)
+					if err := transport.SendFile(request.Files[0], sc, outbound); err != nil {
+						platformGateway.Notify(fmt.Sprintf("Unable to send file offer: %s", err))
+						_ = sc.Close()
+					}
 				}
 			}
 		}
