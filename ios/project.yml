@@ -1,0 +1,35 @@
+name: Drift
+options:
+  bundleIdPrefix: io.metalgrid
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.4"
+
+targets:
+  Drift:
+    type: application
+    platform: iOS
+    sources:
+      - Drift
+    settings:
+      base:
+        INFOPLIST_FILE: Drift/Info.plist
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_STRICT_CONCURRENCY: complete
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGN_STYLE: Automatic
+
+  DriftTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DriftTests
+    dependencies:
+      - target: Drift
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

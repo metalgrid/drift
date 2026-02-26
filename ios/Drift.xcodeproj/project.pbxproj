@@ -1,0 +1,567 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A100000001 /* DriftApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000001; };
+		A100000002 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000002; };
+		A100000003 /* Peer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000003; };
+		A100000004 /* TransferOffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000004; };
+		A100000005 /* KeyPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000005; };
+		A100000006 /* EncryptedStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000006; };
+		A100000007 /* NonceCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000007; };
+		A100000008 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000008; };
+		A100000009 /* TCPListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000009; };
+		A100000010 /* SecureConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000010; };
+		A100000011 /* ConnectionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000011; };
+		A100000012 /* BonjourBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000012; };
+		A100000014 /* PeerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000014; };
+		A100000015 /* PeerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000015; };
+		A100000016 /* PeerRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000016; };
+		A100000017 /* IncomingTransferSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000017; };
+		A100000018 /* TransferProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000018; };
+		A100000019 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000019; };
+		A100000020 /* Data+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000020; };
+		A100000021 /* FileStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000021; };
+		A100000022 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000022; };
+		A200000001 /* NonceCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C100000001; };
+		A200000002 /* MessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C100000002; };
+		A200000003 /* EncryptedStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C100000003; };
+		A200000004 /* PeerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C100000004; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D100000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E100000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F100000001;
+			remoteInfo = Drift;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		B100000001 /* DriftApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftApp.swift; sourceTree = "<group>"; };
+		B100000002 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
+		B100000003 /* Peer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Peer.swift; sourceTree = "<group>"; };
+		B100000004 /* TransferOffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferOffer.swift; sourceTree = "<group>"; };
+		B100000005 /* KeyPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyPair.swift; sourceTree = "<group>"; };
+		B100000006 /* EncryptedStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedStream.swift; sourceTree = "<group>"; };
+		B100000007 /* NonceCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceCounter.swift; sourceTree = "<group>"; };
+		B100000008 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		B100000009 /* TCPListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCPListener.swift; sourceTree = "<group>"; };
+		B100000010 /* SecureConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureConnection.swift; sourceTree = "<group>"; };
+		B100000011 /* ConnectionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionHandler.swift; sourceTree = "<group>"; };
+		B100000012 /* BonjourBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourBrowser.swift; sourceTree = "<group>"; };
+		B100000014 /* PeerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerStore.swift; sourceTree = "<group>"; };
+		B100000015 /* PeerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerListView.swift; sourceTree = "<group>"; };
+		B100000016 /* PeerRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerRowView.swift; sourceTree = "<group>"; };
+		B100000017 /* IncomingTransferSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingTransferSheet.swift; sourceTree = "<group>"; };
+		B100000018 /* TransferProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferProgressView.swift; sourceTree = "<group>"; };
+		B100000019 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B100000020 /* Data+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Hex.swift"; sourceTree = "<group>"; };
+		B100000021 /* FileStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileStorage.swift; sourceTree = "<group>"; };
+		B100000022 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		C100000001 /* NonceCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonceCounterTests.swift; sourceTree = "<group>"; };
+		C100000002 /* MessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageTests.swift; sourceTree = "<group>"; };
+		C100000003 /* EncryptedStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedStreamTests.swift; sourceTree = "<group>"; };
+		C100000004 /* PeerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerStoreTests.swift; sourceTree = "<group>"; };
+		F100000002 /* Drift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Drift.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F100000003 /* DriftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DriftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F200000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F200000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G100000001 = {
+			isa = PBXGroup;
+			children = (
+				G100000002 /* Drift */,
+				G100000009 /* DriftTests */,
+				G100000010 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		G100000002 /* Drift */ = {
+			isa = PBXGroup;
+			children = (
+				B100000001 /* DriftApp.swift */,
+				B100000002 /* AppCoordinator.swift */,
+				G100000003 /* Models */,
+				G100000004 /* Crypto */,
+				G100000005 /* Protocol */,
+				G100000006 /* Networking */,
+				G100000007 /* Discovery */,
+				G100000008 /* UI */,
+				G100000011 /* Utilities */,
+			);
+			path = Drift;
+			sourceTree = "<group>";
+		};
+		G100000003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B100000003 /* Peer.swift */,
+				B100000004 /* TransferOffer.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		G100000004 /* Crypto */ = {
+			isa = PBXGroup;
+			children = (
+				B100000005 /* KeyPair.swift */,
+				B100000006 /* EncryptedStream.swift */,
+				B100000007 /* NonceCounter.swift */,
+			);
+			path = Crypto;
+			sourceTree = "<group>";
+		};
+		G100000005 /* Protocol */ = {
+			isa = PBXGroup;
+			children = (
+				B100000008 /* Message.swift */,
+			);
+			path = Protocol;
+			sourceTree = "<group>";
+		};
+		G100000006 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				B100000009 /* TCPListener.swift */,
+				B100000010 /* SecureConnection.swift */,
+				B100000011 /* ConnectionHandler.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		G100000007 /* Discovery */ = {
+			isa = PBXGroup;
+			children = (
+				B100000012 /* BonjourBrowser.swift */,
+				B100000014 /* PeerStore.swift */,
+			);
+			path = Discovery;
+			sourceTree = "<group>";
+		};
+		G100000008 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				B100000015 /* PeerListView.swift */,
+				B100000016 /* PeerRowView.swift */,
+				B100000017 /* IncomingTransferSheet.swift */,
+				B100000018 /* TransferProgressView.swift */,
+				B100000019 /* SettingsView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		G100000009 /* DriftTests */ = {
+			isa = PBXGroup;
+			children = (
+				C100000001 /* NonceCounterTests.swift */,
+				C100000002 /* MessageTests.swift */,
+				C100000003 /* EncryptedStreamTests.swift */,
+				C100000004 /* PeerStoreTests.swift */,
+			);
+			path = DriftTests;
+			sourceTree = "<group>";
+		};
+		G100000010 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F100000002 /* Drift.app */,
+				F100000003 /* DriftTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		G100000011 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B100000020 /* Data+Hex.swift */,
+				B100000021 /* FileStorage.swift */,
+				B100000022 /* NotificationService.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F100000001 /* Drift */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F300000001 /* Build configuration list for PBXNativeTarget "Drift" */;
+			buildPhases = (
+				F400000001 /* Sources */,
+				F200000001 /* Frameworks */,
+				F500000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Drift;
+			productName = Drift;
+			productReference = F100000002 /* Drift.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F100000004 /* DriftTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F300000002 /* Build configuration list for PBXNativeTarget "DriftTests" */;
+			buildPhases = (
+				F400000002 /* Sources */,
+				F200000002 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D100000002 /* PBXTargetDependency */,
+			);
+			name = DriftTests;
+			productName = DriftTests;
+			productReference = F100000003 /* DriftTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E100000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					F100000001 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+					F100000004 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = F100000001;
+					};
+				};
+			};
+			buildConfigurationList = F300000003 /* Build configuration list for PBXProject "Drift" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = G100000001;
+			productRefGroup = G100000010 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F100000001 /* Drift */,
+				F100000004 /* DriftTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F500000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F400000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100000001 /* DriftApp.swift in Sources */,
+				A100000002 /* AppCoordinator.swift in Sources */,
+				A100000003 /* Peer.swift in Sources */,
+				A100000004 /* TransferOffer.swift in Sources */,
+				A100000005 /* KeyPair.swift in Sources */,
+				A100000006 /* EncryptedStream.swift in Sources */,
+				A100000007 /* NonceCounter.swift in Sources */,
+				A100000008 /* Message.swift in Sources */,
+				A100000009 /* TCPListener.swift in Sources */,
+				A100000010 /* SecureConnection.swift in Sources */,
+				A100000011 /* ConnectionHandler.swift in Sources */,
+				A100000012 /* BonjourBrowser.swift in Sources */,
+				A100000014 /* PeerStore.swift in Sources */,
+				A100000015 /* PeerListView.swift in Sources */,
+				A100000016 /* PeerRowView.swift in Sources */,
+				A100000017 /* IncomingTransferSheet.swift in Sources */,
+				A100000018 /* TransferProgressView.swift in Sources */,
+				A100000019 /* SettingsView.swift in Sources */,
+				A100000020 /* Data+Hex.swift in Sources */,
+				A100000021 /* FileStorage.swift in Sources */,
+				A100000022 /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F400000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A200000001 /* NonceCounterTests.swift in Sources */,
+				A200000002 /* MessageTests.swift in Sources */,
+				A200000003 /* EncryptedStreamTests.swift in Sources */,
+				A200000004 /* PeerStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D100000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F100000001 /* Drift */;
+			targetProxy = D100000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		H100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		H100000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		H200000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Drift/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.metalgrid.drift;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		H200000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Drift/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.metalgrid.drift;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		H300000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.metalgrid.drift.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Drift.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Drift";
+			};
+			name = Debug;
+		};
+		H300000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.metalgrid.drift.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Drift.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Drift";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F300000001 /* Build configuration list for PBXNativeTarget "Drift" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H200000001 /* Debug */,
+				H200000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F300000002 /* Build configuration list for PBXNativeTarget "DriftTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H300000001 /* Debug */,
+				H300000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F300000003 /* Build configuration list for PBXProject "Drift" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				H100000001 /* Debug */,
+				H100000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = E100000001 /* Project object */;
+}
