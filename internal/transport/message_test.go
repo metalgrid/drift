@@ -277,3 +277,18 @@ func TestExistingOfferStillWorks(t *testing.T) {
 		t.Errorf("Size = %d, want %d", offer.Size, 1024)
 	}
 }
+
+func TestValidateProtocolFilenameRejectsReservedDelimiters(t *testing.T) {
+	if err := validateProtocolFilename("bad|name.txt"); err == nil {
+		t.Fatal("expected protocol delimiter validation error")
+	}
+	if err := validateProtocolFilename("bad\nname.txt"); err == nil {
+		t.Fatal("expected end-of-message delimiter validation error")
+	}
+}
+
+func TestValidateProtocolFilenameAcceptsSimpleFilename(t *testing.T) {
+	if err := validateProtocolFilename("hello.txt"); err != nil {
+		t.Fatalf("validateProtocolFilename() returned %v, want nil", err)
+	}
+}

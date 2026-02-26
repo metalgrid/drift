@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,8 @@ import (
 )
 
 type EncryptionKey *[32]byte
+
+const maxEncryptedFrameSize = 8 * 1024 * 1024
 
 // GenerateX25519KeyPair generates an X25519 key pair.
 func GenerateX25519KeyPair() (EncryptionKey, EncryptionKey, error) {
@@ -29,6 +32,9 @@ func GenerateX25519KeyPair() (EncryptionKey, EncryptionKey, error) {
 func DeriveSharedSecret(privateKey, peerPublicKey EncryptionKey) (EncryptionKey, error) {
 	var sharedSecret [32]byte
 	curve25519.ScalarMult(&sharedSecret, privateKey, peerPublicKey)
+	if sharedSecret == ([32]byte{}) {
+		return nil, errors.New("invalid shared secret")
+	}
 
 	return &sharedSecret, nil
 }
@@ -161,6 +167,16 @@ func NewDecryptReader(r io.Reader, recipientPrivateKey EncryptionKey) (*DecryptR
 }
 
 func (dr *DecryptReader) Read(buf []byte) (int, error) {
+	if len(buf) == 0 {
+		return 0, nil
+	}
+
+	if len(dr.decBuf) > 0 {
+		n := copy(buf, dr.decBuf)
+		dr.decBuf = dr.decBuf[n:]
+		return n, nil
+	}
+
 	// Read the length of the encrypted data (4 bytes, big-endian).
 	lengthBuf := make([]byte, 4)
 	if _, err := io.ReadFull(dr.reader, lengthBuf); err != nil {
@@ -170,6 +186,9 @@ func (dr *DecryptReader) Read(buf []byte) (int, error) {
 		(uint32(lengthBuf[1]) << 16) |
 		(uint32(lengthBuf[2]) << 8) |
 		uint32(lengthBuf[3])
+	if length == 0 || length > maxEncryptedFrameSize {
+		return 0, fmt.Errorf("encrypted frame length %d out of bounds", length)
+	}
 
 	// Allocate a buffer to hold the encrypted data.
 	encrypted := make([]byte, length)
@@ -187,9 +206,12 @@ func (dr *DecryptReader) Read(buf []byte) (int, error) {
 	incrementNonce(dr.nonce)
 
 	// Copy the decrypted data into the provided buffer.
-	copy(buf, decrypted)
+	n := copy(buf, decrypted)
+	if n < len(decrypted) {
+		dr.decBuf = append(dr.decBuf[:0], decrypted[n:]...)
+	}
 
-	return len(decrypted), nil
+	return n, nil
 }
 
 type WrappedConnection struct {

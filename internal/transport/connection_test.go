@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -167,6 +168,40 @@ func TestStoreFileDirCreation(t *testing.T) {
 
 	if !bytes.Equal(content, testData) {
 		t.Errorf("File content = %q, want %q", content, testData)
+	}
+}
+
+func TestStoreFileRejectsTraversalAndSeparators(t *testing.T) {
+	tmpDir := t.TempDir()
+	testData := []byte("x")
+
+	tests := []struct {
+		name     string
+		filename string
+	}{
+		{name: "parent traversal", filename: "../../evil.txt"},
+		{name: "absolute path", filename: "/tmp/evil.txt"},
+		{name: "path separator", filename: "nested/evil.txt"},
+		{name: "windows separator", filename: "nested\\evil.txt"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := storeFile(tmpDir, tc.filename, int64(len(testData)), bytes.NewReader(testData), nil)
+			if err == nil {
+				t.Fatalf("storeFile() with %q expected error", tc.filename)
+			}
+		})
+	}
+}
+
+func TestReadControlMessageRejectsOversizedInput(t *testing.T) {
+	oversized := strings.Repeat("A", maxControlMessageSize+1) + "\n"
+	r := bufio.NewReader(strings.NewReader(oversized))
+
+	_, err := readControlMessage(r)
+	if err == nil {
+		t.Fatal("expected error for oversized control message")
 	}
 }
 

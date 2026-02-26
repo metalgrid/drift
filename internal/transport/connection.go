@@ -3,12 +3,15 @@ package transport
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/metalgrid/drift/internal/platform"
@@ -18,6 +21,9 @@ const (
 	missingOutboundTransferStateToken     = "missing_outbound_transfer_state"
 	outboundAnswerNoSupportedPendingToken = "outbound_answer_no_supported_pending_offer"
 	unsolicitedAnswerIgnoredToken         = "unsolicited_answer_ignored"
+	maxControlMessageSize                 = 64 * 1024
+	controlReadTimeout                    = 2 * time.Minute
+	fileReadTimeout                       = 10 * time.Minute
 )
 
 type OutboundTransferState struct {
@@ -58,7 +64,8 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway, o
 	reader := bufio.NewReader(conn)
 
 	for {
-		raw, err := reader.ReadString(byte(endOfMessage))
+		_ = conn.SetReadDeadline(time.Now().Add(controlReadTimeout))
+		raw, err := readControlMessage(reader)
 		if err != nil {
 			fmt.Println("error reading from remote:", err)
 			return
@@ -102,7 +109,8 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway, o
 
 			fp := filepath.Join(xdg.UserDirs.Download, "Drift")
 			for _, file := range m.Files {
-				err = storeFile(fp, file.Filename, file.Size, conn, nil)
+				_ = conn.SetReadDeadline(time.Now().Add(fileReadTimeout))
+				err = storeFile(fp, file.Filename, file.Size, reader, nil)
 				if err != nil {
 					gw.Notify(fmt.Sprintf("Failed storing file %s: %s", file.Filename, err))
 					return
@@ -125,7 +133,8 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway, o
 			}
 
 			fp := filepath.Join(xdg.UserDirs.Download, "Drift")
-			err = storeFile(fp, m.Filename, m.Size, conn, nil)
+			_ = conn.SetReadDeadline(time.Now().Add(fileReadTimeout))
+			err = storeFile(fp, m.Filename, m.Size, reader, nil)
 			if err != nil {
 				gw.Notify(fmt.Sprintf("Failed storing file: %s", err))
 				return
@@ -173,6 +182,47 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway, o
 	}
 }
 
+func readControlMessage(reader *bufio.Reader) (string, error) {
+	var b strings.Builder
+	for {
+		fragment, err := reader.ReadString(byte(endOfMessage))
+		if b.Len()+len(fragment) > maxControlMessageSize {
+			return "", fmt.Errorf("control message exceeds %d bytes", maxControlMessageSize)
+		}
+		b.WriteString(fragment)
+		if errors.Is(err, bufio.ErrBufferFull) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		return b.String(), nil
+	}
+}
+
+func sanitizeIncomingFilename(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("empty filename")
+	}
+	if strings.ContainsRune(name, '\x00') {
+		return "", fmt.Errorf("filename contains null byte")
+	}
+	clean := filepath.Clean(name)
+	if clean == "." || clean == ".." {
+		return "", fmt.Errorf("invalid filename")
+	}
+	if filepath.IsAbs(clean) {
+		return "", fmt.Errorf("absolute paths are not allowed")
+	}
+	if filepath.Base(clean) != clean {
+		return "", fmt.Errorf("path separators are not allowed")
+	}
+	if strings.Contains(clean, "/") || strings.Contains(clean, "\\") {
+		return "", fmt.Errorf("path separators are not allowed")
+	}
+	return clean, nil
+}
+
 func storeFile(incoming, file string, size int64, reader io.Reader, progress ProgressFunc) error {
 	err := os.MkdirAll(incoming, 0777)
 
@@ -180,9 +230,26 @@ func storeFile(incoming, file string, size int64, reader io.Reader, progress Pro
 		return err
 	}
 
-	fp := filepath.Join(incoming, file)
+	safeName, err := sanitizeIncomingFilename(file)
+	if err != nil {
+		return err
+	}
+
+	root, err := filepath.Abs(incoming)
+	if err != nil {
+		return err
+	}
+
+	fp := filepath.Join(root, safeName)
+	rel, err := filepath.Rel(root, fp)
+	if err != nil {
+		return err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("resolved path escapes destination directory")
+	}
 	// f, err := os.Create(filepath)
-	f, err := os.CreateTemp(incoming, file+"*.drift")
+	f, err := os.CreateTemp(root, safeName+"*.drift")
 	if err != nil {
 		return err
 	}

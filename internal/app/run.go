@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 
@@ -97,17 +98,14 @@ func Run(ctx context.Context, identity string) error {
 					continue
 				}
 
-				decodedKey, err := hex.DecodeString(pk)
+				peerPublicKey, err := parsePeerPublicKeyHex(pk)
 				if err != nil {
 					log.Warn().Str("peer", peer.Instance).Str("pk", pk).Err(err).Msg("invalid public key")
 					_ = conn.Close()
 					continue
 				}
 
-				var peerPublicKey [32]byte
-				copy(peerPublicKey[:], decodedKey)
-
-				sc, err := secret.SecureConnection(conn, &peerPublicKey, privkey)
+				sc, err := secret.SecureConnection(conn, peerPublicKey, privkey)
 				if err != nil {
 					log.Warn().Err(err).Msg("failed securing connection")
 					_ = conn.Close()
@@ -133,24 +131,27 @@ func Run(ctx context.Context, identity string) error {
 					continue
 				}
 
-				target := net.JoinHostPort(peer.Addresses[0].String(), strconv.Itoa(peer.Port))
+				targetHost, ok := firstPeerAddress(peer.Addresses)
+				if !ok {
+					platformGateway.Notify("Unable to connect: peer has no addresses")
+					continue
+				}
+
+				target := net.JoinHostPort(targetHost, strconv.Itoa(peer.Port))
 				conn, err := net.Dial("tcp", target)
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to connect to peer: %s", err))
 					continue
 				}
 
-				pk, err := hex.DecodeString(peer.GetRecord("pk"))
+				peerpk, err := parsePeerPublicKeyHex(peer.GetRecord("pk"))
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to retrieve peer's public key: %s", err))
 					_ = conn.Close()
 					continue
 				}
 
-				var peerpk [32]byte
-				copy(peerpk[:], pk)
-
-				sc, err := secret.SecureConnection(conn, &peerpk, privkey)
+				sc, err := secret.SecureConnection(conn, peerpk, privkey)
 				if err != nil {
 					platformGateway.Notify(fmt.Sprintf("Unable to secure connection with peer: %s", err))
 					_ = conn.Close()
@@ -182,4 +183,25 @@ func Run(ctx context.Context, identity string) error {
 
 	wg.Wait()
 	return nil
+}
+
+func parsePeerPublicKeyHex(pkHex string) (*[32]byte, error) {
+	decodedKey, err := hex.DecodeString(pkHex)
+	if err != nil {
+		return nil, err
+	}
+	if len(decodedKey) != 32 {
+		return nil, fmt.Errorf("invalid public key length %d", len(decodedKey))
+	}
+
+	var peerPublicKey [32]byte
+	copy(peerPublicKey[:], decodedKey)
+	return &peerPublicKey, nil
+}
+
+func firstPeerAddress(addrs []netip.Addr) (string, bool) {
+	if len(addrs) == 0 {
+		return "", false
+	}
+	return addrs[0].String(), true
 }

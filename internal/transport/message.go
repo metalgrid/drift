@@ -104,6 +104,9 @@ func UnmarshalMessage(msg string) any {
 		files := make([]FileEntry, count)
 		for i := 0; i < count; i++ {
 			idx := 2 + (i * 3)
+			if err = validateProtocolFilename(parts[idx]); err != nil {
+				break
+			}
 			size, parseErr := strconv.ParseInt(parts[idx+2], 10, 64)
 			if parseErr != nil {
 				err = parseErr
@@ -126,6 +129,9 @@ func UnmarshalMessage(msg string) any {
 	case strings.HasPrefix(msg, "OFFER"):
 		parts := strings.Split(msg, fieldSeparator)
 		if len(parts) != 4 {
+			break
+		}
+		if err = validateProtocolFilename(parts[1]); err != nil {
 			break
 		}
 		var size int64
@@ -158,6 +164,9 @@ func MakeOffer(filename string) (Offer, error) {
 	if err != nil {
 		return Offer{}, fmt.Errorf("failed offering a file transfer: %w", err)
 	}
+	if err := validateProtocolFilename(fileInfo.Name()); err != nil {
+		return Offer{}, err
+	}
 
 	return Offer{
 		Message{"OFFER"},
@@ -178,6 +187,9 @@ func MakeBatchOffer(filenames []string) (BatchOffer, error) {
 		if err != nil {
 			return BatchOffer{}, fmt.Errorf("failed offering file %s: %w", filename, err)
 		}
+		if err := validateProtocolFilename(fileInfo.Name()); err != nil {
+			return BatchOffer{}, err
+		}
 		files = append(files, FileEntry{
 			Filename: fileInfo.Name(),
 			Mimetype: mimeType,
@@ -189,6 +201,16 @@ func MakeBatchOffer(filenames []string) (BatchOffer, error) {
 		Message{"BATCH_OFFER"},
 		files,
 	}, nil
+}
+
+func validateProtocolFilename(name string) error {
+	if name == "" {
+		return fmt.Errorf("filename cannot be empty")
+	}
+	if strings.Contains(name, fieldSeparator) || strings.ContainsRune(name, endOfMessage) {
+		return fmt.Errorf("filename contains reserved protocol delimiters")
+	}
+	return nil
 }
 
 func Accept() Answer {
