@@ -8,16 +8,51 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/adrg/xdg"
 	"github.com/metalgrid/drift/internal/platform"
 )
 
-type contextKey string
+const (
+	missingOutboundTransferStateToken     = "missing_outbound_transfer_state"
+	outboundAnswerNoSupportedPendingToken = "outbound_answer_no_supported_pending_offer"
+	unsolicitedAnswerIgnoredToken         = "unsolicited_answer_ignored"
+)
 
-const FilenameKey contextKey = "filename"
+type OutboundTransferState struct {
+	mu           sync.Mutex
+	pendingFiles []string
+}
 
-func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
+func NewOutboundTransferState() *OutboundTransferState {
+	return &OutboundTransferState{}
+}
+
+func (s *OutboundTransferState) SetPendingFiles(files []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pendingFiles = append([]string(nil), files...)
+}
+
+func (s *OutboundTransferState) ConsumePendingFiles() ([]string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.pendingFiles) == 0 {
+		return nil, false
+	}
+	files := append([]string(nil), s.pendingFiles...)
+	s.pendingFiles = nil
+	return files, true
+}
+
+func (s *OutboundTransferState) ClearPendingFiles() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pendingFiles = nil
+}
+
+func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway, outbound *OutboundTransferState) {
 	fmt.Println("handling connection", conn.LocalAddr().(*net.TCPAddr), conn.RemoteAddr().(*net.TCPAddr))
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -98,14 +133,42 @@ func HandleConnection(ctx context.Context, conn net.Conn, gw platform.Gateway) {
 			gw.Notify(fmt.Sprintf("File received: %s", m.Filename))
 		case Answer:
 			if m.Accepted() {
-				file := ctx.Value(FilenameKey).(string)
-				err = sendFile(file, conn, nil)
-				if err != nil {
-					gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
+				if outbound == nil {
+					gw.Notify(missingOutboundTransferStateToken)
+					gw.Notify(outboundAnswerNoSupportedPendingToken)
 					return
 				}
-				gw.Notify(fmt.Sprintf("File sent: %s", file))
+
+				files, ok := outbound.ConsumePendingFiles()
+				if !ok {
+					gw.Notify(unsolicitedAnswerIgnoredToken)
+					return
+				}
+
+				if len(files) == 0 {
+					gw.Notify(outboundAnswerNoSupportedPendingToken)
+					return
+				}
+
+				for _, file := range files {
+					err = sendFile(file, conn, nil)
+					if err != nil {
+						gw.Notify(fmt.Sprintf("Failed sending %s: %s", file, err))
+						return
+					}
+				}
+
+				if len(files) == 1 {
+					gw.Notify(fmt.Sprintf("File sent: %s", files[0]))
+					continue
+				}
+				gw.Notify(fmt.Sprintf("Batch sent: %d files", len(files)))
+				continue
 			}
+			if outbound != nil {
+				outbound.ClearPendingFiles()
+			}
+			return
 		}
 	}
 }
@@ -155,30 +218,50 @@ func sendFile(file string, writer io.Writer, progress ProgressFunc) error {
 	return err
 }
 
-func SendFile(filename string, conn net.Conn) {
+func SendFile(filename string, conn net.Conn, outbound *OutboundTransferState) error {
 	fmt.Println("Sending file", filename)
+	if outbound == nil {
+		return fmt.Errorf("%s", missingOutboundTransferStateToken)
+	}
+	outbound.SetPendingFiles([]string{filename})
+
 	offer, err := MakeOffer(filename)
 	if err != nil {
+		outbound.ClearPendingFiles()
 		fmt.Println("failed creating file offer:", err)
-		return
+		return err
 	}
 
 	_, err = conn.Write(offer.MarshalMessage())
 	if err != nil {
+		outbound.ClearPendingFiles()
 		fmt.Println("failed sending file:", err)
+		return err
 	}
+
+	return nil
 }
 
-func SendBatch(filenames []string, conn net.Conn) {
+func SendBatch(filenames []string, conn net.Conn, outbound *OutboundTransferState) error {
 	fmt.Println("Sending batch of", len(filenames), "files")
+	if outbound == nil {
+		return fmt.Errorf("%s", missingOutboundTransferStateToken)
+	}
+	outbound.SetPendingFiles(filenames)
+
 	batch, err := MakeBatchOffer(filenames)
 	if err != nil {
+		outbound.ClearPendingFiles()
 		fmt.Println("failed creating batch offer:", err)
-		return
+		return err
 	}
 
 	_, err = conn.Write(batch.MarshalMessage())
 	if err != nil {
+		outbound.ClearPendingFiles()
 		fmt.Println("failed sending batch:", err)
+		return err
 	}
+
+	return nil
 }
