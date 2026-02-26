@@ -152,14 +152,10 @@ func (g *linuxGateway) openDropWindow(peerInstance string) {
 	dropZone.Append(hintLabel)
 
 	// Drop target
-	dropTarget := gtk.NewDropTarget(glib.TypeString, gdk.ActionCopy)
+	dropTarget := gtk.NewDropTarget(glib.TypeInvalid, gdk.ActionCopy|gdk.ActionMove)
+	dropTarget.SetGTypes([]glib.Type{gdk.GTypeFileList, glib.TypeString})
 	dropTarget.ConnectDrop(func(val *glib.Value, x, y float64) bool {
-		str, ok := val.GoValue().(string)
-		if !ok {
-			return false
-		}
-
-		paths := parseFileURIs(str)
+		paths := droppedPaths(val)
 		if len(paths) == 0 {
 			return false
 		}
@@ -355,6 +351,24 @@ func (g *linuxGateway) showTransferDetail(req promptRequest) {
 
 	win.SetChild(box)
 	win.Present()
+}
+
+func droppedPaths(val *glib.Value) []string {
+	v := val.GoValue()
+	switch value := v.(type) {
+	case *gdk.FileList:
+		paths := make([]string, 0, len(value.Files()))
+		for _, file := range value.Files() {
+			if path := file.Path(); path != "" {
+				paths = append(paths, path)
+			}
+		}
+		return paths
+	case string:
+		return parseFileURIs(value)
+	default:
+		return nil
+	}
 }
 
 // parseFileURIs extracts file paths from a newline-separated list of file:// URIs.
